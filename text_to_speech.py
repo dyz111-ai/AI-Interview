@@ -6,7 +6,7 @@ import os
 import time
 
 class TextToSpeech:
-    def __init__(self, voice="zh-CN-XiaoxiaoNeural"):
+    def __init__(self, voice="zh-CN-YunyangNeural"):
         """
         初始化TTS
         :param voice: 语音类型，中文可选: zh-CN-XiaoxiaoNeural(女), zh-CN-YunxiNeural(男)

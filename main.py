@@ -12,13 +12,23 @@ def main():
     llm = DeepSeekChat(api_key=DEEPSEEK_API_KEY)
     
     # 启动提示
-    tts.speak("你好，语音助手已启动")
+    tts.speak("你好，我是你的面试官，我们将进行Java后端开发工程师的模拟面试。请准备好，我们马上开始。")
     print("=" * 50)
     print("说'退出'、'再见'或'结束'来退出程序")
     
+
+    count = 0
     while True:
         # 1. 语音转文字
         user_input = listen_to_text()
+        # if count == 0:
+        #     user_input = "你好，面试官。我准备好了。请问第一个问题是什么？"  # 测试用固定输入
+        # elif count == 1:
+        #     user_input = "我是王云杰，我印象最深的是图书馆管理系统"  # 测试用固定输入
+        # else:
+        #     user_input = listen_to_text()
+        # count += 1
+        
         
         if not user_input:
             continue
