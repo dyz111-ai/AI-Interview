@@ -1,14 +1,16 @@
 import json
-import os
 from typing import List, Optional
 from datetime import datetime
 from pathlib import Path
 
+from ..config import DATA_DIR
+
 class HistoryManager:
     """面试历史数据管理器"""
 
-    def __init__(self, data_dir: str = "data"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_dir: Optional[str] = None):
+        # 默认写入项目根目录 data/，与工作目录无关
+        self.data_dir = Path(data_dir) if data_dir else DATA_DIR
         self.history_file = self.data_dir / "interview_history.json"
         self._ensure_data_dir()
         self._ensure_history_file()

@@ -8,33 +8,40 @@ import os
 import time
 import webbrowser
 import threading
+from pathlib import Path
+
+# 项目根目录（保证工作目录正确，且子进程 stdout 不使用 PIPE，避免缓冲区塞满导致进程卡死）
+ROOT = Path(__file__).resolve().parent
+
+# Windows 上 5500 易出现 WinError 10013（被占用或权限），改用非常见端口；若仍冲突可改此数字
+FRONTEND_PORT = 8765
 
 def start_backend():
     """启动FastAPI后端"""
     print("🚀 启动后端服务...")
-    # 切换到backend目录并运行
     return subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "backend.main:app", "--host", "127.0.0.1", "--port", "8000", "--reload"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True
+        cwd=ROOT,
     )
 
 def start_frontend():
     """启动简单的前端服务器"""
     print("🌐 启动前端服务...")
     return subprocess.Popen(
-        [sys.executable, "-m", "http.server", "5500", "--directory", "frontend"],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        universal_newlines=True
+        [
+            sys.executable, "-m", "http.server", str(FRONTEND_PORT),
+            "--bind", "127.0.0.1",
+            "--directory", "frontend",
+        ],
+        cwd=ROOT,
     )
 
 def open_browser():
     """等待几秒后打开浏览器"""
     time.sleep(5)
-    webbrowser.open("http://127.0.0.1:5500")
-    print("✅ 浏览器已打开，访问 http://127.0.0.1:5500")
+    url = f"http://127.0.0.1:{FRONTEND_PORT}"
+    webbrowser.open(url)
+    print(f"✅ 浏览器已打开，访问 {url}")
 
 def check_backend_ready():
     """检查后端服务是否就绪"""
@@ -74,7 +81,7 @@ def main():
     
     # 启动前端
     frontend_process = start_frontend()
-    print("✅ 前端服务启动中 (http://127.0.0.1:5500)")
+    print(f"✅ 前端服务启动中 (http://127.0.0.1:{FRONTEND_PORT})")
     
     # 打开浏览器
     threading.Thread(target=open_browser, daemon=True).start()

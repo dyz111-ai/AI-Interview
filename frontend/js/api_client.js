@@ -48,8 +48,28 @@ class APIClient {
         }
     }
 
-    async startInterview() {
-        const data = this.sessionId ? { session_id: this.sessionId } : {};
+    async parseResume(file) {
+        const url = `${this.baseURL}/api/interview/parse-resume`;
+        const form = new FormData();
+        form.append('file', file);
+        const response = await fetch(url, { method: 'POST', body: form });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText || `HTTP ${response.status}`);
+        }
+        return response.json();
+    }
+
+    async startInterview(resumeText) {
+        // 空串会触发后端 min_length=1，返回 422
+        const text = typeof resumeText === 'string' ? resumeText.trim() : String(resumeText ?? '').trim();
+        if (!text) {
+            throw new Error('简历内容为空。请重新上传能复制出文字的 PDF 或 docx（图片型 PDF 无法识别）。');
+        }
+        const data = { resume_text: text };
+        if (this.sessionId != null && this.sessionId !== '') {
+            data.session_id = String(this.sessionId);
+        }
         const result = await this.request('/api/interview/start', 'POST', data);
         this.sessionId = result.session_id;
         return result;

@@ -4,7 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI面试系统 - Java后端开发工程师</title>
-    <link rel="stylesheet" href="css/style.css">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <link rel="stylesheet" href="css/style.css?v=5">
 </head>
 <body>
     <div class="container">
@@ -18,7 +19,7 @@
             <div class="chat-area" id="chatArea">
                 <div class="message system">
                     <span class="role">🤖 系统</span>
-                    <p>点击"开始面试"按钮开始模拟面试</p>
+                    <p>点击下方「开始面试」，在弹出窗口中上传简历（PDF 或 docx），解析成功后再确认即可开始。对话将显示在这里。</p>
                 </div>
             </div>
 
@@ -27,18 +28,60 @@
                 <button id="startBtn" class="btn btn-primary">🎤 开始面试</button>
                 <button id="recordBtn" class="btn btn-record" disabled>🎙️ 按住说话</button>
                 <button id="endBtn" class="btn btn-danger" disabled>✖️ 结束面试</button>
+                <button type="button" id="viewReportBtn" class="btn btn-primary btn-hidden" disabled>📄 查看面试报告</button>
                 <button id="historyBtn" class="btn btn-secondary">📋 历史记录</button>
             </div>
 
             <!-- 状态提示 -->
             <div class="status" id="status">
-                准备就绪，点击开始面试
+                点击「开始面试」后将提示上传简历
             </div>
 
             <!-- 手动输入备用 -->
             <div class="manual-input">
                 <input type="text" id="manualInput" placeholder="或者在这里输入文字..." disabled>
                 <button id="sendBtn" class="btn btn-secondary" disabled>发送</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上传简历 → 开始面试 -->
+    <div id="resumeModal" class="modal">
+        <div class="modal-content modal-resume">
+            <div class="modal-header">
+                <h2>📎 上传简历</h2>
+                <span class="close-resume" title="关闭">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="resume-step-card resume-step-card--modal">
+                    <p class="resume-step-desc">请选择 <strong>PDF</strong> 或 <strong>Word（.docx）</strong>。解析成功后可点击「确认并开始面试」。</p>
+                    <div class="resume-actions">
+                        <input type="file" id="resumeFileInput" class="resume-file-hidden" accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        <label for="resumeFileInput" class="btn btn-resume-pick">📎 点击选择简历文件</label>
+                        <span id="resumeHint" class="resume-hint">当前状态：未上传</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="resumeModalCancel" class="btn btn-secondary">取消</button>
+                <button type="button" id="resumeModalConfirm" class="btn btn-primary" disabled>确认并开始面试</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 面试总结报告 -->
+    <div id="summaryReportModal" class="modal">
+        <div class="modal-content modal-large modal-summary-report">
+            <div class="modal-header">
+                <h2>📄 面试总结报告</h2>
+                <span class="close-summary" title="关闭">&times;</span>
+            </div>
+            <div class="modal-body modal-body--report">
+                <div id="summaryReportBody" class="summary-report-body"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="summaryDownloadPdfBtn" class="btn btn-primary">下载 PDF</button>
+                <button type="button" id="summaryModalCloseBtn" class="btn btn-secondary">关闭</button>
             </div>
         </div>
     </div>
@@ -72,9 +115,11 @@
         </div>
     </div>
 
-    <script src="js/api_client.js"></script>
-    <script src="js/audio_recorder.js"></script>
-    <script src="js/audio_player.js"></script>
-    <script src="js/app.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
+    <script src="js/api_client.js?v=5"></script>
+    <script src="js/audio_recorder.js?v=5"></script>
+    <script src="js/audio_player.js?v=5"></script>
+    <script src="js/summary_report_render.js?v=5"></script>
+    <script src="js/app.js?v=5"></script>
 </body>
 </html>

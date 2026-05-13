@@ -1,0 +1,23 @@
+
+# 在当前 PowerShell 窗口执行
+Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
+
+# 然后再激活
+venv\Scripts\activate
+
+
+
+
+# 向量库与面试历史均在项目根目录 data/ 下（chroma_db、java_backend 源 markdown、interview_history.json）
+
+# 本地 Embedding 模型目录（与 backend.config 默认一致；无 models/bge-small-zh-v1.5 时用此路径）：
+#   backend/rag/bge-small-en-v1.5
+# 如需指定其它路径，可在 .env 设置 RAG_ST_MODEL_PATH=...
+
+# 构建向量库（SentenceTransformer + Chroma，与 RAGService 一致）：在项目根执行
+python -m backend.rag.ingest
+
+# 检索与题库效果：在 .env 中设置 RAG_ENABLED=true 后重启后端，进行模拟面试即可验证。
+
+python run.py
+http://127.0.0.1:8765/

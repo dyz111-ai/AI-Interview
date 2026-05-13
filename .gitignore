@@ -1,0 +1,26 @@
+# 本地 Embedding 模型（体积大）
+backend/rag/bge-small-en-v1.5/
+
+# Chroma 向量库持久化目录（体积大）
+data/chroma_db/
+
+# 可选：若中文模型也放在仓库根下
+models/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+env/
+
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

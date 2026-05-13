@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 from typing import Optional, List
 from datetime import datetime
 
@@ -13,8 +13,24 @@ class ChatResponse(BaseModel):
     session_id: str
 
 class StartInterviewRequest(BaseModel):
-    """开始面试请求"""
+    """开始面试请求（须先解析简历并得到 resume_text）"""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
     session_id: Optional[str] = None
+    resume_text: str = Field(
+        ...,
+        min_length=1,
+        description="解析后的简历全文",
+        validation_alias=AliasChoices("resume_text", "resumeText"),
+    )
+
+
+class ParseResumeResponse(BaseModel):
+    """简历解析响应"""
+    text: str
+    truncated: bool = False
+    filename: str = ""
 
 class StartInterviewResponse(BaseModel):
     """开始面试响应"""

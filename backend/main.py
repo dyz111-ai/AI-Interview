@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from .config import Config
 from .services.interview_service import InterviewService
@@ -6,8 +6,10 @@ from .models.schemas import (
     ChatRequest, ChatResponse,
     StartInterviewRequest, StartInterviewResponse,
     EndInterviewRequest, EndInterviewResponse,
-    InterviewListResponse, DeleteInterviewRequest, DeleteInterviewResponse
+    InterviewListResponse, DeleteInterviewRequest, DeleteInterviewResponse,
+    ParseResumeResponse,
 )
+from .utils.resume_parser import extract_text_from_upload
 
 app = FastAPI(title="AI面试系统API", version="1.0.0")
 
@@ -25,15 +27,46 @@ interview_service = InterviewService()
 async def root():
     return {"message": "AI面试系统API运行中", "status": "ok"}
 
+@app.post("/api/interview/parse-resume", response_model=ParseResumeResponse)
+async def parse_resume(file: UploadFile = File(...)):
+    """上传 PDF 或 Word（docx），返回解析后的纯文本。"""
+    data = await file.read()
+    if len(data) > Config.MAX_RESUME_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="文件过大")
+
+    try:
+        text = extract_text_from_upload(file.filename or "resume", data)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    truncated = False
+    if len(text) > Config.RESUME_MAX_CHARS:
+        text = text[: Config.RESUME_MAX_CHARS]
+        truncated = True
+
+    return ParseResumeResponse(
+        text=text,
+        truncated=truncated,
+        filename=file.filename or "",
+    )
+
+
 @app.post("/api/interview/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
     """
-    开始面试
+    开始面试（必须携带 parse-resume 得到的 resume_text）
     """
-    session_id, first_question = interview_service.start_interview(request.session_id)
+    try:
+        session_id, first_question = interview_service.start_interview(
+            request.session_id,
+            request.resume_text,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return StartInterviewResponse(
         session_id=session_id,
-        first_question=first_question
+        first_question=first_question,
     )
 
 @app.post("/api/interview/chat", response_model=ChatResponse)
@@ -46,7 +79,11 @@ async def chat(request: ChatRequest):
     if not request.user_message:
         raise HTTPException(status_code=400, detail="user_message不能为空")
 
-    reply = interview_service.chat(request.session_id, request.user_message)
+    try:
+        reply = interview_service.chat(request.session_id, request.user_message)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     return ChatResponse(
         reply=reply,
         session_id=request.session_id
