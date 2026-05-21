@@ -3,10 +3,13 @@ from typing import Dict, List, Optional
 
 from ..config import Config
 from ..prompts.system_prompt import (
+    build_interview_style_addon,
     build_summary_resume_addon,
+    get_first_question_user_prompt,
     get_interview_summary_system_prompt,
     get_system_prompt,
 )
+from ..models.interview_settings import InterviewSettings
 
 
 class LLMService:
@@ -26,6 +29,7 @@ class LLMService:
         *,
         question_bank_addon: Optional[str] = None,
         resume_addon: Optional[str] = None,
+        interview_settings: Optional[InterviewSettings] = None,
     ) -> str:
         """
         发送消息给 LLM。
@@ -33,6 +37,8 @@ class LLMService:
         """
         try:
             system_content = get_system_prompt()
+            if interview_settings:
+                system_content = system_content + "\n\n" + build_interview_style_addon(interview_settings)
             if question_bank_addon:
                 system_content = system_content + "\n\n" + question_bank_addon
                 if Config.RESUME_IN_BANK_PHASE and resume_addon:
@@ -61,13 +67,22 @@ class LLMService:
             print(f"LLM API错误: {e}")
             return "抱歉，我遇到了一些问题，请稍后重试。"
 
-    def get_first_question(self, resume_addon: Optional[str] = None) -> str:
-        """首轮：结合简历做自我介绍与亮点追问。"""
+    def get_first_question(
+        self,
+        resume_addon: Optional[str] = None,
+        *,
+        interview_settings: Optional[InterviewSettings] = None,
+    ) -> str:
+        """首轮：结合简历与开场方式提问。"""
+        opening = "self_intro"
+        if interview_settings:
+            opening = interview_settings.opening_mode
         return self.chat(
             [],
-            "请开始面试，首先让候选人结合简历做自我介绍并你可追问简历中的亮点。",
+            get_first_question_user_prompt(opening),
             rag_context="",
             resume_addon=resume_addon,
+            interview_settings=interview_settings,
         )
 
     def end_interview(

@@ -5,75 +5,254 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI面试系统 - Java后端开发工程师</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <link rel="stylesheet" href="css/style.css?v=5">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css?v=13">
 </head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🎯 AI模拟面试系统</h1>
-            <p>Java后端开发工程师岗位</p>
-        </header>
-
-        <div class="interview-panel">
-            <!-- 对话显示区域 -->
-            <div class="chat-area" id="chatArea">
-                <div class="message system">
-                    <span class="role">🤖 系统</span>
-                    <p>点击下方「开始面试」，在弹出窗口中上传简历（PDF 或 docx），解析成功后再确认即可开始。对话将显示在这里。</p>
-                </div>
-            </div>
-
-            <!-- 控制按钮区域 -->
-            <div class="controls">
-                <button id="startBtn" class="btn btn-primary">🎤 开始面试</button>
-                <button id="recordBtn" class="btn btn-record" disabled>🎙️ 按住说话</button>
-                <button id="endBtn" class="btn btn-danger" disabled>✖️ 结束面试</button>
-                <button type="button" id="viewReportBtn" class="btn btn-primary btn-hidden" disabled>📄 查看面试报告</button>
-                <button id="historyBtn" class="btn btn-secondary">📋 历史记录</button>
-            </div>
-
-            <!-- 状态提示 -->
-            <div class="status" id="status">
-                点击「开始面试」后将提示上传简历
-            </div>
-
-            <!-- 手动输入备用 -->
-            <div class="manual-input">
-                <input type="text" id="manualInput" placeholder="或者在这里输入文字..." disabled>
-                <button id="sendBtn" class="btn btn-secondary" disabled>发送</button>
-            </div>
-        </div>
+<body class="app-body">
+    <div class="ambient-bg" aria-hidden="true">
+        <span class="orb orb-a"></span>
+        <span class="orb orb-b"></span>
+        <span class="orb orb-c"></span>
     </div>
 
-    <!-- 上传简历 → 开始面试 -->
-    <div id="resumeModal" class="modal">
-        <div class="modal-content modal-resume">
-            <div class="modal-header">
-                <h2>📎 上传简历</h2>
-                <span class="close-resume" title="关闭">&times;</span>
+    <div class="container">
+        <section id="viewWelcome" class="app-view app-view--active" aria-label="欢迎">
+            <header class="site-header site-header--center">
+                <div class="header-brand">
+                    <span class="header-badge">AI MOCK INTERVIEW</span>
+                    <h1>欢迎使用 AI 模拟面试系统</h1>
+                    <p class="header-subtitle">Java 后端开发工程师 · 选择功能开始使用</p>
+                </div>
+            </header>
+
+            <div class="welcome-body">
+                <nav class="welcome-hub" aria-label="功能入口">
+                    <button type="button" id="welcomeMockBtn" class="welcome-hub-card">
+                        <span class="welcome-hub-icon" aria-hidden="true">🎯</span>
+                        <span class="welcome-hub-title">模拟面试</span>
+                        <span class="welcome-hub-desc">上传简历、配置风格后开始 AI 模拟技术面</span>
+                    </button>
+                    <button type="button" id="welcomePredictBtn" class="welcome-hub-card">
+                        <span class="welcome-hub-icon" aria-hidden="true">📝</span>
+                        <span class="welcome-hub-title">简历押题</span>
+                        <span class="welcome-hub-desc">根据简历预测高频问题与答题要点</span>
+                    </button>
+                    <button type="button" id="welcomeHistoryBtn" class="welcome-hub-card welcome-hub-card--secondary">
+                        <span class="welcome-hub-icon" aria-hidden="true">📋</span>
+                        <span class="welcome-hub-title">历史记录</span>
+                        <span class="welcome-hub-desc">查看往期对话与面试总结报告</span>
+                    </button>
+                </nav>
             </div>
-            <div class="modal-body">
-                <div class="resume-step-card resume-step-card--modal">
-                    <p class="resume-step-desc">请选择 <strong>PDF</strong> 或 <strong>Word（.docx）</strong>。解析成功后可点击「确认并开始面试」。</p>
+
+            <footer class="site-footer">
+                <span>本地会话 · 数据保存在本机</span>
+            </footer>
+        </section>
+
+        <section id="viewSetup" class="app-view" aria-label="面试设置" hidden>
+            <header class="site-header site-header--compact">
+                <div>
+                    <h1>本场面试设置</h1>
+                    <p class="header-subtitle">配置完成后进入对话；简历为必选项</p>
+                </div>
+            </header>
+
+            <div class="setup-body">
+                <div class="setup-section">
+                    <h2 class="setup-section-title">① 简历</h2>
+                    <p class="setup-hint">请上传 <strong>PDF</strong> 或 <strong>Word（.docx）</strong>，解析成功后可开始面试。</p>
                     <div class="resume-actions">
                         <input type="file" id="resumeFileInput" class="resume-file-hidden" accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
-                        <label for="resumeFileInput" class="btn btn-resume-pick">📎 点击选择简历文件</label>
+                        <label for="resumeFileInput" class="btn btn-resume-pick">选择简历文件</label>
                         <span id="resumeHint" class="resume-hint">当前状态：未上传</span>
+                    </div>
+                    <details id="resumePreviewWrap" class="resume-preview-wrap" hidden>
+                        <summary>预览解析文本（前 300 字）</summary>
+                        <pre id="resumePreview" class="resume-preview"></pre>
+                    </details>
+                </div>
+
+                <div class="setup-section">
+                    <h2 class="setup-section-title">② 面试风格</h2>
+                    <div class="option-cards" role="radiogroup" aria-label="面试官风格">
+                        <label class="option-card">
+                            <input type="radio" name="interviewStyle" value="gentle">
+                            <span class="option-card-inner">
+                                <span class="option-card-title">温和鼓励型</span>
+                                <span class="option-card-desc">多引导、少施压，适合热身与信心建立</span>
+                            </span>
+                        </label>
+                        <label class="option-card">
+                            <input type="radio" name="interviewStyle" value="standard" checked>
+                            <span class="option-card-inner">
+                                <span class="option-card-title">标准专业型</span>
+                                <span class="option-card-desc">专业清晰，平衡深度与节奏（推荐）</span>
+                            </span>
+                        </label>
+                        <label class="option-card">
+                            <input type="radio" name="interviewStyle" value="pressure">
+                            <span class="option-card-inner">
+                                <span class="option-card-title">压力面型</span>
+                                <span class="option-card-desc">追问更密，要求澄清细节与举例</span>
+                            </span>
+                        </label>
+                    </div>
+                    <div class="setup-row">
+                        <label class="setup-label" for="depthSelect">提问深度</label>
+                        <select id="depthSelect" class="setup-select">
+                            <option value="basic">基础</option>
+                            <option value="standard" selected>标准</option>
+                            <option value="deep">深入</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setup-section">
+                    <h2 class="setup-section-title">③ 节奏与内容</h2>
+                    <div class="setup-row">
+                        <label class="setup-label" for="durationSelect">预计时长</label>
+                        <select id="durationSelect" class="setup-select">
+                            <option value="15">约 15 分钟</option>
+                            <option value="20" selected>约 20 分钟</option>
+                            <option value="30">约 30 分钟</option>
+                        </select>
+                    </div>
+                    <p class="setup-label setup-label--block">考察侧重（可多选）</p>
+                    <div class="chip-group" id="focusAreasGroup">
+                        <label class="chip"><input type="checkbox" name="focusArea" value="java_basic" checked> Java 基础</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="java_collection"> Java 集合</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="concurrent"> 并发编程</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="jvm"> JVM / GC</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="thread_pool"> 线程池</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="spring" checked> Spring Boot</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="spring_cloud"> 微服务</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="database"> MySQL</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="sql_optimize"> SQL 优化</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="redis"> Redis</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="mq"> 消息队列</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="distributed"> 分布式</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="system_design"> 系统设计</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="performance"> 性能优化</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="network"> 网络 / HTTP</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="io_nio"> IO / NIO</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="design_pattern"> 设计模式</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="algorithm"> 算法数据结构</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="security"> 安全鉴权</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="docker_k8s"> Docker / K8s</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="engineering"> 工程实践</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="project" checked> 项目深挖</label>
+                        <label class="chip"><input type="checkbox" name="focusArea" value="behavioral"> 行为面试</label>
                     </div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" id="resumeModalCancel" class="btn btn-secondary">取消</button>
-                <button type="button" id="resumeModalConfirm" class="btn btn-primary" disabled>确认并开始面试</button>
+
+            <div class="setup-footer">
+                <button type="button" id="setupBackBtn" class="btn btn-ghost">返回</button>
+                <button type="button" id="setupStartBtn" class="btn btn-primary btn-lg" disabled>开始面试</button>
             </div>
-        </div>
+        </section>
+
+        <section id="viewPredict" class="app-view" aria-label="简历押题" hidden>
+            <header class="site-header site-header--compact">
+                <div>
+                    <h1>简历押题</h1>
+                    <p class="header-subtitle">上传简历，生成可能的问题与回答要点</p>
+                </div>
+            </header>
+
+            <div class="setup-body predict-body">
+                <div class="setup-section">
+                    <h2 class="setup-section-title">① 简历</h2>
+                    <p class="setup-hint">请上传 <strong>PDF</strong> 或 <strong>Word（.docx）</strong>。</p>
+                    <div class="resume-actions">
+                        <input type="file" id="predictResumeFileInput" class="resume-file-hidden" accept=".pdf,.doc,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                        <label for="predictResumeFileInput" class="btn btn-resume-pick">选择简历文件</label>
+                        <span id="predictResumeHint" class="resume-hint">当前状态：未上传</span>
+                    </div>
+                </div>
+
+                <div class="setup-section">
+                    <h2 class="setup-section-title">② 押题设置</h2>
+                    <div class="setup-row">
+                        <label class="setup-label" for="predictCountSelect">题量</label>
+                        <select id="predictCountSelect" class="setup-select">
+                            <option value="8">精简 · 约 8 题</option>
+                            <option value="12" selected>标准 · 约 12 题</option>
+                            <option value="18">全面 · 约 18 题</option>
+                        </select>
+                    </div>
+                    <p class="setup-label setup-label--block">考察侧重（可多选，不选则全面押题）</p>
+                    <div class="chip-group" id="predictFocusAreasGroup">
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="java_basic" checked> Java 基础</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="project" checked> 项目深挖</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="spring" checked> Spring Boot</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="concurrent"> 并发编程</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="database"> MySQL</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="redis"> Redis</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="mq"> 消息队列</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="system_design"> 系统设计</label>
+                        <label class="chip"><input type="checkbox" name="predictFocusArea" value="behavioral"> 行为面试</label>
+                    </div>
+                </div>
+
+                <div id="predictStatus" class="predict-status" role="status" aria-live="polite"></div>
+                <div id="predictResult" class="predict-result" hidden></div>
+            </div>
+
+            <div class="setup-footer">
+                <button type="button" id="predictBackBtn" class="btn btn-ghost">返回</button>
+                <div class="predict-footer-actions">
+                    <button type="button" id="predictCopyBtn" class="btn btn-secondary btn-hidden">复制全部</button>
+                    <button type="button" id="predictGenerateBtn" class="btn btn-primary btn-lg" disabled>开始押题</button>
+                </div>
+            </div>
+        </section>
+
+        <section id="viewInterview" class="app-view" aria-label="面试对话" hidden>
+            <header class="site-header site-header--compact site-header--interview">
+                <div class="header-brand">
+                    <h1>AI 模拟面试</h1>
+                    <p class="header-subtitle">对话进行中</p>
+                </div>
+                <button type="button" id="interviewSettingsBtn" class="btn btn-ghost btn-small">调整设置</button>
+            </header>
+
+            <div class="interview-panel">
+                <div class="panel-label">
+                    <span class="panel-label-dot"></span>
+                    对话区
+                </div>
+                <div class="chat-area" id="chatArea">
+                    <div class="message system">
+                        <span class="role">系统</span>
+                        <p>面试即将开始，对话将显示在这里。</p>
+                    </div>
+                </div>
+                <div class="controls">
+                    <button id="recordBtn" class="btn btn-record" disabled>按住说话</button>
+                    <button id="endBtn" class="btn btn-danger" disabled>结束面试</button>
+                    <button type="button" id="viewReportBtn" class="btn btn-accent btn-hidden" disabled>查看面试报告</button>
+                    <button id="historyBtn" class="btn btn-secondary">历史记录</button>
+                </div>
+                <div class="status" id="status">准备中…</div>
+                <div class="manual-input" id="manualInputRow">
+                    <input type="text" id="manualInput" placeholder="输入文字回复，按 Enter 发送…" disabled>
+                    <button id="sendBtn" class="btn btn-send" disabled>发送</button>
+                </div>
+            </div>
+            <footer class="site-footer">
+                <span>本地会话 · 数据保存在本机</span>
+            </footer>
+        </section>
     </div>
 
-    <!-- 面试总结报告 -->
     <div id="summaryReportModal" class="modal">
         <div class="modal-content modal-large modal-summary-report">
-            <div class="modal-header">
-                <h2>📄 面试总结报告</h2>
+            <div class="modal-header modal-header--report">
+                <h2>面试总结报告</h2>
                 <span class="close-summary" title="关闭">&times;</span>
             </div>
             <div class="modal-body modal-body--report">
@@ -81,16 +260,15 @@
             </div>
             <div class="modal-footer">
                 <button type="button" id="summaryDownloadPdfBtn" class="btn btn-primary">下载 PDF</button>
-                <button type="button" id="summaryModalCloseBtn" class="btn btn-secondary">关闭</button>
+                <button type="button" id="summaryModalCloseBtn" class="btn btn-ghost">关闭</button>
             </div>
         </div>
     </div>
 
-    <!-- 历史记录模态框 -->
     <div id="historyModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>📋 面试历史记录</h2>
+                <h2>面试历史记录</h2>
                 <span class="close">&times;</span>
             </div>
             <div class="modal-body" id="historyList">
@@ -99,27 +277,25 @@
         </div>
     </div>
 
-    <!-- 历史详情模态框 -->
     <div id="historyDetailModal" class="modal">
         <div class="modal-content modal-large">
             <div class="modal-header">
                 <h2 id="detailTitle">面试详情</h2>
                 <span class="close-detail">&times;</span>
             </div>
-            <div class="modal-body" id="historyDetail">
-            </div>
+            <div class="modal-body" id="historyDetail"></div>
             <div class="modal-footer">
-                <button id="deleteHistoryBtn" class="btn btn-danger">🗑️ 删除记录</button>
-                <button id="closeDetailBtn" class="btn btn-secondary">关闭</button>
+                <button id="deleteHistoryBtn" class="btn btn-danger">删除记录</button>
+                <button id="closeDetailBtn" class="btn btn-ghost">关闭</button>
             </div>
         </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
-    <script src="js/api_client.js?v=5"></script>
-    <script src="js/audio_recorder.js?v=5"></script>
-    <script src="js/audio_player.js?v=5"></script>
-    <script src="js/summary_report_render.js?v=5"></script>
-    <script src="js/app.js?v=5"></script>
+    <script src="js/api_client.js?v=12"></script>
+    <script src="js/audio_recorder.js?v=12"></script>
+    <script src="js/audio_player.js?v=12"></script>
+    <script src="js/summary_report_render.js?v=12"></script>
+    <script src="js/app.js?v=12"></script>
 </body>
 </html>

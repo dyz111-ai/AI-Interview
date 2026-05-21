@@ -60,13 +60,16 @@ class APIClient {
         return response.json();
     }
 
-    async startInterview(resumeText) {
+    async startInterview(resumeText, settings) {
         // 空串会触发后端 min_length=1，返回 422
         const text = typeof resumeText === 'string' ? resumeText.trim() : String(resumeText ?? '').trim();
         if (!text) {
             throw new Error('简历内容为空。请重新上传能复制出文字的 PDF 或 docx（图片型 PDF 无法识别）。');
         }
         const data = { resume_text: text };
+        if (settings && typeof settings === 'object') {
+            data.settings = settings;
+        }
         if (this.sessionId != null && this.sessionId !== '') {
             data.session_id = String(this.sessionId);
         }
@@ -110,6 +113,18 @@ class APIClient {
     async deleteInterview(sessionId) {
         const result = await this.request(`/api/interview/history/${sessionId}`, 'DELETE');
         return result;
+    }
+
+    async generateResumePredict(resumeText, questionCount, focusAreas) {
+        const text = typeof resumeText === 'string' ? resumeText.trim() : String(resumeText ?? '').trim();
+        if (!text) {
+            throw new Error('简历内容为空，请先上传并解析简历');
+        }
+        return this.request('/api/resume-predict/generate', 'POST', {
+            resume_text: text,
+            question_count: questionCount,
+            focus_areas: focusAreas || [],
+        });
     }
 }
 

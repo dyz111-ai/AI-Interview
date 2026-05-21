@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Dict, Optional
 
 from ..config import Config
+from ..models.interview_settings import InterviewSettings
 from ..models.session import InterviewSession
 from ..prompts.system_prompt import build_question_bank_addon, build_resume_addon
 from ..rag.question_bank import sample_random_question_texts
@@ -28,7 +29,12 @@ class InterviewService:
                 print(f"RAG 服务初始化失败（将在无 RAG 检索模式下运行）: {e}")
                 self.rag_service = None
 
-    def start_interview(self, session_id: Optional[str], resume_text: str) -> tuple[str, str]:
+    def start_interview(
+        self,
+        session_id: Optional[str],
+        resume_text: str,
+        settings: Optional[InterviewSettings] = None,
+    ) -> tuple[str, str]:
         """
         开始面试（须携带 parse-resume 得到的 resume_text）
         :return: (session_id, first_question)
@@ -44,15 +50,20 @@ class InterviewService:
             session_id = str(uuid.uuid4())[:8]
 
         stored = raw[: Config.RESUME_MAX_CHARS]
+        interview_settings = settings if settings is not None else InterviewSettings()
         session = InterviewSession(
             session_id=session_id,
             created_at=datetime.now(),
             last_active=datetime.now(),
             resume_plain_text=stored,
+            settings=interview_settings,
         )
 
         resume_addon = build_resume_addon(stored)
-        first_question = self.llm_service.get_first_question(resume_addon=resume_addon)
+        first_question = self.llm_service.get_first_question(
+            resume_addon=resume_addon,
+            interview_settings=interview_settings,
+        )
 
         session.add_message("assistant", first_question)
         self.sessions[session_id] = session
@@ -78,13 +89,13 @@ class InterviewService:
         elif (
             Config.QUESTION_BANK_ENABLED
             and not session.bank_started
-            and session.user_turn_count >= Config.MIN_USER_ROUNDS_BEFORE_BANK
+            and session.user_turn_count >= session.settings.min_rounds_before_bank
         ):
             texts, _total = sample_random_question_texts(
                 Config.RAG_DB_DIR,
                 Config.RAG_COLLECTION,
                 Config.RAG_JOB_ROLE,
-                Config.QUESTION_BANK_SAMPLE_SIZE,
+                session.settings.bank_sample_size,
                 Config.QUESTION_BANK_MAX_CHARS_PER_ITEM,
             )
             if texts:
@@ -129,6 +140,7 @@ class InterviewService:
             rag_context,
             question_bank_addon=bank_addon,
             resume_addon=resume_addon,
+            interview_settings=session.settings,
         )
 
         session.add_message("assistant", reply)

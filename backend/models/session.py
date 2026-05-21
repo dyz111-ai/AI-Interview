@@ -2,6 +2,8 @@ from typing import List, Dict
 from datetime import datetime
 from pydantic import BaseModel, Field
 
+from .interview_settings import InterviewSettings
+
 class Message(BaseModel):
     """单条消息"""
     role: str  # "user" 或 "assistant"
@@ -28,6 +30,9 @@ class InterviewSession(BaseModel):
 
     # 解析后的简历正文（整场会话保留，第一阶段注入模型）
     resume_plain_text: str = ""
+
+    # 设置页传入的本场配置
+    settings: InterviewSettings = Field(default_factory=InterviewSettings)
 
     def add_message(self, role: str, content: str):
         """添加消息到历史"""

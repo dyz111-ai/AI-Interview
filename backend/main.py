@@ -2,12 +2,15 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from .config import Config
 from .services.interview_service import InterviewService
+from .services.resume_predict_service import ResumePredictService
 from .models.schemas import (
     ChatRequest, ChatResponse,
     StartInterviewRequest, StartInterviewResponse,
     EndInterviewRequest, EndInterviewResponse,
     InterviewListResponse, DeleteInterviewRequest, DeleteInterviewResponse,
     ParseResumeResponse,
+    ResumePredictRequest,
+    ResumePredictResponse,
 )
 from .utils.resume_parser import extract_text_from_upload
 
@@ -22,6 +25,7 @@ app.add_middleware(
 )
 
 interview_service = InterviewService()
+resume_predict_service = ResumePredictService()
 
 @app.get("/")
 async def root():
@@ -51,6 +55,32 @@ async def parse_resume(file: UploadFile = File(...)):
     )
 
 
+@app.post("/api/resume-predict/generate", response_model=ResumePredictResponse)
+async def generate_resume_predict(request: ResumePredictRequest):
+    """根据简历生成可能面试题与回答要点。"""
+    raw = (request.resume_text or "").strip()
+    if len(raw) < Config.RESUME_MIN_CHARS_TO_START:
+        raise HTTPException(
+            status_code=400,
+            detail=f"简历有效内容过短（至少约 {Config.RESUME_MIN_CHARS_TO_START} 个字符）",
+        )
+    try:
+        result = resume_predict_service.generate(
+            raw,
+            question_count=request.question_count,
+            focus_areas=request.focus_areas,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"押题生成失败: {e}") from e
+
+    if not result.get("sections"):
+        raise HTTPException(status_code=500, detail="未生成有效题目，请重试")
+
+    return ResumePredictResponse(**result)
+
+
 @app.post("/api/interview/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
     """
@@ -60,6 +90,7 @@ async def start_interview(request: StartInterviewRequest):
         session_id, first_question = interview_service.start_interview(
             request.session_id,
             request.resume_text,
+            request.settings,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

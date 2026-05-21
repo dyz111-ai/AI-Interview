@@ -2,6 +2,8 @@ from pydantic import BaseModel, Field, ConfigDict, AliasChoices
 from typing import Optional, List
 from datetime import datetime
 
+from .interview_settings import InterviewSettings
+
 class ChatRequest(BaseModel):
     """聊天请求模型"""
     session_id: str
@@ -23,6 +25,10 @@ class StartInterviewRequest(BaseModel):
         min_length=1,
         description="解析后的简历全文",
         validation_alias=AliasChoices("resume_text", "resumeText"),
+    )
+    settings: Optional[InterviewSettings] = Field(
+        default=None,
+        validation_alias=AliasChoices("settings", "interview_settings", "interviewSettings"),
     )
 
 
@@ -71,3 +77,32 @@ class DeleteInterviewResponse(BaseModel):
     """删除面试响应"""
     success: bool
     message: str
+
+
+class ResumePredictRequest(BaseModel):
+    """简历押题请求"""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    resume_text: str = Field(..., min_length=1)
+    question_count: int = Field(default=12, ge=6, le=20)
+    focus_areas: List[str] = Field(default_factory=list)
+
+
+class ResumePredictItem(BaseModel):
+    question: str
+    why_ask: str = ""
+    answer_points: List[str] = Field(default_factory=list)
+    sample_answer: str = ""
+
+
+class ResumePredictSection(BaseModel):
+    category: str
+    items: List[ResumePredictItem]
+
+
+class ResumePredictResponse(BaseModel):
+    predict_id: str
+    generated_at: str
+    question_count: int
+    sections: List[ResumePredictSection]

@@ -1,4 +1,7 @@
-from typing import List
+from typing import List, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..models.interview_settings import InterviewSettings
 
 
 def build_summary_resume_addon(resume_text: str, max_chars: int) -> str:
@@ -93,12 +96,87 @@ def get_system_prompt() -> str:
         "你的任务是："
         "1. 根据岗位Java后端开发工程师的要求，从题库中选择或动态生成面试题；若系统消息中附带知识库检索参考，可优先对齐其中的主题、题型与难度，包含技术知识、项目经历深挖、场景题、行为题。"
         "2. 采用多轮对话形式，先提问，等学生回答后，根据回答中的关键词或漏洞进行合理追问。"
-        "3. 控制面试节奏，总时长约15-20分钟，包括3-5个核心问题及可能的追问。"
+        "3. 控制面试节奏，包括若干核心问题及可能的追问；具体时长见本场面试配置。"
         "4. 在每次学生回答后，不直接给出答案，而是简短过渡（如明白了，我们再看下一个问题或你提到了XX，能具体说一下吗？）。"
         "5. 不要在对话过程中输出完整的结构化评估报告或打分表；候选人点击结束面试后，系统会单独生成书面总结报告。"
         "当前面试岗位：Java后端开发工程师。"
         "目标学生水平：本科或硕士，有基础项目经验。"
-        "请开始第一轮提问，首先要询问自我介绍，后续再追问。"
         "请使用纯文本格式回复，不要使用任何Markdown语法（如*、#、-、`等符号），不要使用代码块、列表标记。"
         "请用自然流畅的语言回答。"
+    )
+
+
+_STYLE_HINTS = {
+    "gentle": (
+        "【面试风格：温和鼓励型】语气友善，多给引导；候选人答偏时先肯定再提示方向，"
+        "避免连续施压式质疑；可适当总结对方已说对的点。"
+    ),
+    "standard": (
+        "【面试风格：标准专业型】保持专业、节奏清晰；追问要有依据，平衡深度与时长。"
+    ),
+    "pressure": (
+        "【面试风格：压力面型】追问更密集，对含糊或矛盾处要求澄清与举例；"
+        "可适度质疑细节，但仍保持礼貌，不要人身攻击。"
+    ),
+}
+
+_DEPTH_HINTS = {
+    "basic": "【提问深度：基础】侧重概念理解与常见场景，少追问源码级实现。",
+    "standard": "【提问深度：标准】概念与项目结合，适度追问原理与取舍。",
+    "deep": "【提问深度：深入】在关键点上追问原理、边界、性能与工程权衡，可要求结合项目说明。",
+}
+
+_FOCUS_LABELS = {
+    "java_basic": "Java 基础（语法、OOP、面向对象）",
+    "java_collection": "Java 集合框架（List/Map/ConcurrentHashMap 等）",
+    "concurrent": "并发编程（锁、synchronized、volatile、AQS）",
+    "jvm": "JVM 与 GC（内存模型、类加载、调优）",
+    "thread_pool": "线程池与异步任务",
+    "spring": "Spring / Spring Boot（IoC、AOP、事务）",
+    "spring_cloud": "微服务（注册发现、网关、配置中心、熔断）",
+    "database": "MySQL 与关系型数据库",
+    "sql_optimize": "SQL 编写与索引优化",
+    "redis": "Redis 与缓存设计",
+    "mq": "消息队列（可靠性、幂等、顺序、积压）",
+    "distributed": "分布式理论（CAP、一致性、分布式锁、ID）",
+    "system_design": "系统设计与架构拆分",
+    "performance": "性能优化（接口、SQL、缓存、并发）",
+    "network": "网络与 HTTP（TCP、HTTPS、REST）",
+    "io_nio": "IO 与 NIO / Netty 基础",
+    "design_pattern": "常用设计模式与落地场景",
+    "algorithm": "算法与数据结构（笔试向）",
+    "security": "安全与鉴权（加密、JWT、防刷）",
+    "docker_k8s": "容器化与部署（Docker、K8s 概念）",
+    "engineering": "工程实践（接口设计、日志、异常、代码质量）",
+    "project": "项目经历深挖（业务、难点、量化结果）",
+    "behavioral": "行为面试（协作、抗压、职业规划）",
+}
+
+
+def build_interview_style_addon(settings: "InterviewSettings") -> str:
+    """将设置页选项转为注入 system 的附加说明。"""
+    style = _STYLE_HINTS.get(settings.interview_style, _STYLE_HINTS["standard"])
+    depth = _DEPTH_HINTS.get(settings.depth, _DEPTH_HINTS["standard"])
+    lines = [
+        "【本场面试配置】",
+        style,
+        depth,
+        f"目标整场时长约 {settings.duration_minutes} 分钟，请控制节奏，避免过早结束或无限拖延。",
+        f"题库环节将随机抽取约 {settings.bank_sample_size} 道结构化题；"
+        f"简历热身阶段在用户发言满约 {settings.min_rounds_before_bank} 轮后进入题库。",
+    ]
+    if settings.focus_areas:
+        labels = [_FOCUS_LABELS.get(k, k) for k in settings.focus_areas]
+        lines.append("本场考察侧重（提问与追问时优先覆盖）：" + "；".join(labels) + "。")
+    return "\n".join(lines)
+
+
+def get_first_question_user_prompt(opening_mode: str) -> str:
+    if opening_mode == "icebreaker":
+        return (
+            "请开始面试。先用一道简短的破冰技术题或场景题开场（可结合岗位），"
+            "再自然引导候选人结合简历补充介绍；不要一次抛出过多问题。"
+        )
+    return (
+        "请开始面试，首先让候选人结合简历做自我介绍，你可追问简历中的亮点与项目细节。"
     )

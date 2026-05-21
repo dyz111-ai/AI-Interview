@@ -45,6 +45,10 @@ class Config:
     # 注入总结提示词的简历摘录上限（字符）
     SUMMARY_RESUME_MAX_CHARS = int(os.getenv("SUMMARY_RESUME_MAX_CHARS", "8000"))
 
+    # 简历押题
+    PREDICT_MAX_TOKENS = int(os.getenv("PREDICT_MAX_TOKENS", "6000"))
+    PREDICT_TEMPERATURE = float(os.getenv("PREDICT_TEMPERATURE", "0.5"))
+
     # RAG（向量检索）：默认关闭；与 backend.rag.ingest / RAGService 一致，持久化在项目根 data/chroma_db
     # 构建向量库：在项目根执行 python -m backend.rag.ingest
     RAG_ENABLED = os.getenv("RAG_ENABLED", "false").lower() in ("1", "true", "yes")

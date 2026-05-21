@@ -45,7 +45,7 @@ class AudioPlayer {
         // 创建语音对象
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = 'zh-CN';  // 中文
-        utterance.rate = 0.9;      // 语速稍慢
+        utterance.rate = 1.5;      // 语速稍慢
         utterance.pitch = 1.0;     // 音调正常
         utterance.volume = 1.0;    // 音量最大
         

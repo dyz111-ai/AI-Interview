@@ -1,29 +1,43 @@
-// 主逻辑
+// 主逻辑：欢迎页 → 设置页 → 面试对话页
 class InterviewApp {
     constructor() {
         this.isInterviewActive = false;
         this.currentSessionId = null;
         this.isRecording = false;
         this.currentDetailSessionId = null;
+        this.currentView = 'welcome';
+
+        this.viewWelcome = document.getElementById('viewWelcome');
+        this.viewSetup = document.getElementById('viewSetup');
+        this.viewPredict = document.getElementById('viewPredict');
+        this.viewInterview = document.getElementById('viewInterview');
+
+        this.predictResumeFileInput = document.getElementById('predictResumeFileInput');
+        this.predictResumeHint = document.getElementById('predictResumeHint');
+        this.predictResumeText = '';
+        this.predictResumeReady = false;
+        this.predictGenerateBtn = document.getElementById('predictGenerateBtn');
+        this.predictCopyBtn = document.getElementById('predictCopyBtn');
+        this.predictResultEl = document.getElementById('predictResult');
+        this.predictStatusEl = document.getElementById('predictStatus');
+        this.lastPredictMarkdown = '';
 
         this.chatArea = document.getElementById('chatArea');
         this.resumeFileInput = document.getElementById('resumeFileInput');
         this.resumeHint = document.getElementById('resumeHint');
+        this.resumePreviewWrap = document.getElementById('resumePreviewWrap');
+        this.resumePreview = document.getElementById('resumePreview');
         this.resumeParsedText = '';
         this.resumeReady = false;
-        this.resumeModal = document.getElementById('resumeModal');
-        this.resumeModalConfirm = document.getElementById('resumeModalConfirm');
-        this.resumeModalCancel = document.getElementById('resumeModalCancel');
-        this.closeResumeBtn = document.querySelector('.close-resume');
 
-        this.startBtn = document.getElementById('startBtn');
+        this.setupStartBtn = document.getElementById('setupStartBtn');
+
         this.recordBtn = document.getElementById('recordBtn');
         this.endBtn = document.getElementById('endBtn');
         this.historyBtn = document.getElementById('historyBtn');
         this.statusDiv = document.getElementById('status');
         this.manualInput = document.getElementById('manualInput');
         this.sendBtn = document.getElementById('sendBtn');
-
         this.historyModal = document.getElementById('historyModal');
         this.historyDetailModal = document.getElementById('historyDetailModal');
         this.historyList = document.getElementById('historyList');
@@ -43,20 +57,39 @@ class InterviewApp {
     }
 
     init() {
+        document.getElementById('welcomeMockBtn')?.addEventListener('click', () => this.showView('setup'));
+        document.getElementById('welcomePredictBtn')?.addEventListener('click', () => this.showView('predict'));
+        document.getElementById('welcomeHistoryBtn')?.addEventListener('click', () => this.showHistory());
+        document.getElementById('predictBackBtn')?.addEventListener('click', () => this.showView('welcome'));
+        if (this.predictResumeFileInput) {
+            this.predictResumeFileInput.addEventListener('change', (e) => this.onPredictResumeFileSelected(e));
+        }
+        if (this.predictGenerateBtn) {
+            this.predictGenerateBtn.addEventListener('click', () => this.generatePredict());
+        }
+        if (this.predictCopyBtn) {
+            this.predictCopyBtn.addEventListener('click', () => this.copyPredictResult());
+        }
+        document.getElementById('setupBackBtn')?.addEventListener('click', () => this.onSetupBack());
+        document.getElementById('interviewSettingsBtn')?.addEventListener('click', () => this.onInterviewSettings());
+
         if (this.resumeFileInput) {
             this.resumeFileInput.addEventListener('change', (e) => this.onResumeFileSelected(e));
         }
+        if (this.setupStartBtn) {
+            this.setupStartBtn.addEventListener('click', () => this.startInterview());
+        }
 
-        this.startBtn.addEventListener('click', () => this.onStartButtonClick());
-        if (this.resumeModalConfirm) {
-            this.resumeModalConfirm.addEventListener('click', () => this.startInterview());
-        }
-        if (this.resumeModalCancel) {
-            this.resumeModalCancel.addEventListener('click', () => this.closeResumeModal());
-        }
-        if (this.closeResumeBtn) {
-            this.closeResumeBtn.addEventListener('click', () => this.closeResumeModal());
-        }
+        const setupInputs = this.viewSetup?.querySelectorAll(
+            'input, select, .chip input'
+        );
+        setupInputs?.forEach((el) => {
+            el.addEventListener('change', () => this.updateSetupSummary());
+            if (el.type === 'number') {
+                el.addEventListener('input', () => this.updateSetupSummary());
+            }
+        });
+
         this.recordBtn.addEventListener('click', () => this.toggleRecording());
         this.endBtn.addEventListener('click', () => this.endInterview());
         this.historyBtn.addEventListener('click', () => this.showHistory());
@@ -65,13 +98,13 @@ class InterviewApp {
             if (e.key === 'Enter') this.sendManualMessage();
         });
 
-        document.querySelector('.close').addEventListener('click', () => {
+        document.querySelector('.close')?.addEventListener('click', () => {
             this.historyModal.style.display = 'none';
         });
-        document.querySelector('.close-detail').addEventListener('click', () => {
+        document.querySelector('.close-detail')?.addEventListener('click', () => {
             this.historyDetailModal.style.display = 'none';
         });
-        document.getElementById('closeDetailBtn').addEventListener('click', () => {
+        document.getElementById('closeDetailBtn')?.addEventListener('click', () => {
             this.historyDetailModal.style.display = 'none';
         });
         this.deleteHistoryBtn.addEventListener('click', () => this.deleteCurrentHistory());
@@ -95,9 +128,6 @@ class InterviewApp {
             }
             if (e.target === this.historyDetailModal) {
                 this.historyDetailModal.style.display = 'none';
-            }
-            if (this.resumeModal && e.target === this.resumeModal) {
-                this.closeResumeModal();
             }
             if (this.summaryReportModal && e.target === this.summaryReportModal) {
                 this.closeSummaryReportModal();
@@ -126,38 +156,290 @@ class InterviewApp {
                 this.enableRecording(true);
             }
         };
+
+        this.loadSettingsFromStorage();
+        this.updateSetupSummary();
+        this.showView('welcome');
     }
 
-    onStartButtonClick() {
+    showView(name) {
+        this.currentView = name;
+        const views = [
+            ['welcome', this.viewWelcome],
+            ['setup', this.viewSetup],
+            ['predict', this.viewPredict],
+            ['interview', this.viewInterview],
+        ];
+        views.forEach(([key, el]) => {
+            if (!el) return;
+            const active = key === name;
+            el.classList.toggle('app-view--active', active);
+            el.hidden = !active;
+        });
+    }
+
+    onSetupBack() {
         if (this.isInterviewActive) {
-            return;
+            if (!confirm('面试进行中，返回将不会自动保存进度。确定返回设置页？')) {
+                return;
+            }
         }
-        this.openResumeModal();
+        this.showView('welcome');
     }
 
-    openResumeModal() {
-        if (!this.resumeModal) {
+    onInterviewSettings() {
+        if (this.isInterviewActive) {
+            this.updateStatus('面试进行中无法修改设置，请先结束面试', 'error');
             return;
         }
-        this.resumeParsedText = '';
-        this.resumeReady = false;
-        if (this.resumeFileInput) {
-            this.resumeFileInput.value = '';
-            this.resumeFileInput.disabled = false;
-        }
-        if (this.resumeHint) {
-            this.resumeHint.textContent = '当前状态：未上传';
-        }
-        if (this.resumeModalConfirm) {
-            this.resumeModalConfirm.disabled = true;
-        }
-        this.resumeModal.style.display = 'block';
-        this.updateStatus('请在弹出窗口中选择简历文件');
+        this.showView('setup');
     }
 
-    closeResumeModal() {
-        if (this.resumeModal) {
-            this.resumeModal.style.display = 'none';
+    setPredictStatus(message, type = 'info') {
+        if (!this.predictStatusEl) return;
+        this.predictStatusEl.textContent = message || '';
+        this.predictStatusEl.dataset.status = type === 'error' ? 'error' : type === 'loading' ? 'loading' : 'info';
+    }
+
+    updatePredictReady() {
+        if (this.predictGenerateBtn) {
+            this.predictGenerateBtn.disabled = !this.predictResumeReady;
+        }
+    }
+
+    collectPredictOptions() {
+        const count = parseInt(document.getElementById('predictCountSelect')?.value || '12', 10);
+        const focusAreas = Array.from(
+            document.querySelectorAll('input[name="predictFocusArea"]:checked')
+        ).map((el) => el.value);
+        return { question_count: count, focus_areas: focusAreas };
+    }
+
+    async onPredictResumeFileSelected(event) {
+        const file = event.target?.files?.[0];
+        if (!file) return;
+
+        this.predictResumeReady = false;
+        this.predictResumeText = '';
+        this.updatePredictReady();
+        if (this.predictResumeHint) {
+            this.predictResumeHint.textContent = '解析中…';
+        }
+        this.setPredictStatus('正在解析简历…', 'loading');
+        if (this.predictResultEl) {
+            this.predictResultEl.hidden = true;
+            this.predictResultEl.innerHTML = '';
+        }
+        if (this.predictCopyBtn) {
+            this.predictCopyBtn.classList.add('btn-hidden');
+        }
+
+        try {
+            const result = await apiClient.parseResume(file);
+            const raw = result.text != null ? String(result.text) : '';
+            this.predictResumeText = raw.trim();
+
+            if (!this.predictResumeText.length) {
+                if (this.predictResumeHint) {
+                    this.predictResumeHint.textContent = '未提取到文字';
+                }
+                this.setPredictStatus('未识别到文字，请换用可复制文本的 PDF 或 docx', 'error');
+                return;
+            }
+
+            this.predictResumeReady = true;
+            const name = result.filename || file.name;
+            if (this.predictResumeHint) {
+                this.predictResumeHint.textContent = `已解析：${name}，约 ${this.predictResumeText.length} 字`;
+            }
+            this.setPredictStatus('简历已就绪，可点击「开始押题」');
+            this.updatePredictReady();
+        } catch (error) {
+            console.error('押题页简历解析失败:', error);
+            if (this.predictResumeHint) {
+                this.predictResumeHint.textContent = '解析失败';
+            }
+            this.setPredictStatus('简历解析失败：' + (error.message || ''), 'error');
+        }
+    }
+
+    renderPredictResult(data) {
+        if (!this.predictResultEl) return;
+
+        const sections = data.sections || [];
+        if (!sections.length) {
+            this.predictResultEl.innerHTML = '<p class="predict-empty">未生成题目，请重试</p>';
+            this.predictResultEl.hidden = false;
+            return;
+        }
+
+        let html = '';
+        let qIndex = 0;
+        sections.forEach((sec) => {
+            html += `<div class="predict-section"><h3 class="predict-section-title">${this.escapeHtml(sec.category || '其他')}</h3>`;
+            (sec.items || []).forEach((item) => {
+                qIndex += 1;
+                const points = (item.answer_points || [])
+                    .map((p) => `<li>${this.escapeHtml(p)}</li>`)
+                    .join('');
+                const sample = (item.sample_answer || '').trim();
+                html += `<article class="predict-item">
+                    <div class="predict-q">${qIndex}. ${this.escapeHtml(item.question || '')}</div>
+                    ${item.why_ask ? `<div class="predict-why">可能原因：${this.escapeHtml(item.why_ask)}</div>` : ''}
+                    ${points ? `<ul class="predict-points">${points}</ul>` : ''}
+                    ${sample ? `<details class="predict-sample"><summary>参考回答（展开）</summary><p>${this.escapeHtml(sample)}</p></details>` : ''}
+                </article>`;
+            });
+            html += '</div>';
+        });
+
+        this.predictResultEl.innerHTML = html;
+        this.predictResultEl.hidden = false;
+        this.lastPredictMarkdown = this.buildPredictMarkdown(sections);
+    }
+
+    escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str == null ? '' : String(str);
+        return div.innerHTML;
+    }
+
+    buildPredictMarkdown(sections) {
+        let md = '# 简历押题结果\n\n';
+        let qIndex = 0;
+        sections.forEach((sec) => {
+            md += `## ${sec.category || '其他'}\n\n`;
+            (sec.items || []).forEach((item) => {
+                qIndex += 1;
+                md += `### ${qIndex}. ${item.question || ''}\n\n`;
+                if (item.why_ask) {
+                    md += `**可能原因：** ${item.why_ask}\n\n`;
+                }
+                if (item.answer_points?.length) {
+                    md += '**回答要点：**\n';
+                    item.answer_points.forEach((p) => {
+                        md += `- ${p}\n`;
+                    });
+                    md += '\n';
+                }
+                if (item.sample_answer) {
+                    md += `**参考回答：** ${item.sample_answer}\n\n`;
+                }
+            });
+        });
+        return md;
+    }
+
+    async generatePredict() {
+        if (!this.predictResumeReady || !this.predictResumeText) {
+            this.setPredictStatus('请先上传并成功解析简历', 'error');
+            return;
+        }
+
+        const opts = this.collectPredictOptions();
+        if (this.predictGenerateBtn) {
+            this.predictGenerateBtn.disabled = true;
+            this.predictGenerateBtn.textContent = '生成中…';
+        }
+        if (this.predictCopyBtn) {
+            this.predictCopyBtn.classList.add('btn-hidden');
+        }
+        this.setPredictStatus('正在根据简历分析可能问题，约需 30～90 秒…', 'loading');
+
+        try {
+            const data = await apiClient.generateResumePredict(
+                this.predictResumeText,
+                opts.question_count,
+                opts.focus_areas
+            );
+            this.renderPredictResult(data);
+            const total = (data.sections || []).reduce(
+                (n, s) => n + (s.items?.length || 0),
+                0
+            );
+            this.setPredictStatus(`押题完成，共 ${total} 道题`);
+            if (this.predictCopyBtn) {
+                this.predictCopyBtn.classList.remove('btn-hidden');
+            }
+            this.predictResultEl?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+            console.error('押题失败:', error);
+            this.setPredictStatus('押题失败：' + (error.message || '请稍后重试'), 'error');
+        } finally {
+            if (this.predictGenerateBtn) {
+                this.predictGenerateBtn.textContent = '开始押题';
+                this.updatePredictReady();
+            }
+        }
+    }
+
+    async copyPredictResult() {
+        const text = this.lastPredictMarkdown || '';
+        if (!text.trim()) {
+            this.setPredictStatus('没有可复制的内容', 'error');
+            return;
+        }
+        try {
+            await navigator.clipboard.writeText(text);
+            this.setPredictStatus('已复制到剪贴板');
+        } catch (_) {
+            this.setPredictStatus('复制失败，请手动选择内容复制', 'error');
+        }
+    }
+
+    collectSettings() {
+        const styleEl = document.querySelector('input[name="interviewStyle"]:checked');
+        const focusAreas = Array.from(
+            document.querySelectorAll('input[name="focusArea"]:checked')
+        ).map((el) => el.value);
+
+        return {
+            interview_style: styleEl?.value || 'standard',
+            depth: document.getElementById('depthSelect')?.value || 'standard',
+            duration_minutes: parseInt(document.getElementById('durationSelect')?.value || '20', 10),
+            focus_areas: focusAreas,
+        };
+    }
+
+    saveSettingsToStorage() {
+        try {
+            localStorage.setItem('interview_setup', JSON.stringify(this.collectSettings()));
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    loadSettingsFromStorage() {
+        try {
+            const raw = localStorage.getItem('interview_setup');
+            if (!raw) return;
+            const s = JSON.parse(raw);
+            if (s.interview_style) {
+                const el = document.querySelector(
+                    `input[name="interviewStyle"][value="${s.interview_style}"]`
+                );
+                if (el) el.checked = true;
+            }
+            if (s.depth && document.getElementById('depthSelect')) {
+                document.getElementById('depthSelect').value = s.depth;
+            }
+            if (s.duration_minutes && document.getElementById('durationSelect')) {
+                document.getElementById('durationSelect').value = String(s.duration_minutes);
+            }
+            if (Array.isArray(s.focus_areas)) {
+                document.querySelectorAll('input[name="focusArea"]').forEach((cb) => {
+                    cb.checked = s.focus_areas.includes(cb.value);
+                });
+            }
+        } catch (_) {
+            /* ignore */
+        }
+    }
+
+    updateSetupSummary() {
+        this.saveSettingsToStorage();
+        if (this.setupStartBtn) {
+            this.setupStartBtn.disabled = !this.resumeReady;
         }
     }
 
@@ -169,13 +451,15 @@ class InterviewApp {
 
         this.resumeReady = false;
         this.resumeParsedText = '';
-        if (this.resumeModalConfirm) {
-            this.resumeModalConfirm.disabled = true;
+        if (this.setupStartBtn) {
+            this.setupStartBtn.disabled = true;
         }
         if (this.resumeHint) {
             this.resumeHint.textContent = '解析中…';
         }
-        this.updateStatus('正在解析简历…');
+        if (this.resumePreviewWrap) {
+            this.resumePreviewWrap.hidden = true;
+        }
 
         try {
             const result = await apiClient.parseResume(file);
@@ -184,16 +468,10 @@ class InterviewApp {
 
             if (!this.resumeParsedText.length) {
                 this.resumeReady = false;
-                if (this.resumeModalConfirm) {
-                    this.resumeModalConfirm.disabled = true;
-                }
                 if (this.resumeHint) {
                     this.resumeHint.textContent = '未提取到文字（常见于扫描版 PDF）';
                 }
-                this.updateStatus(
-                    '文件中未识别到文字，请换用可复制文本的 PDF 或 docx，不要用纯图片简历。',
-                    'error'
-                );
+                this.updateSetupSummary();
                 return;
             }
 
@@ -203,25 +481,24 @@ class InterviewApp {
             if (this.resumeHint) {
                 this.resumeHint.textContent = `已解析：${name}，约 ${this.resumeParsedText.length} 字${extra}`;
             }
-            if (this.resumeModalConfirm) {
-                this.resumeModalConfirm.disabled = false;
+            if (this.resumePreview && this.resumePreviewWrap) {
+                this.resumePreview.textContent = this.resumeParsedText.slice(0, 300);
+                this.resumePreviewWrap.hidden = false;
             }
-            this.updateStatus('简历解析成功，请点击「确认并开始面试」');
+            this.updateSetupSummary();
         } catch (error) {
             console.error('简历解析失败:', error);
             if (this.resumeHint) {
                 this.resumeHint.textContent = '解析失败，请使用 PDF 或 docx';
             }
-            this.updateStatus(
-                '简历解析失败：' + (error.message || '请检查格式与网络'),
-                'error'
-            );
+            this.updateSetupSummary();
         }
     }
 
     updateStatus(message, type = 'info') {
+        if (!this.statusDiv) return;
         this.statusDiv.textContent = message;
-        this.statusDiv.style.color = type === 'error' ? '#dc2626' : '#495057';
+        this.statusDiv.dataset.status = type === 'error' ? 'error' : 'info';
     }
 
     hideReportButton() {
@@ -344,31 +621,34 @@ class InterviewApp {
         this.sendBtn.disabled = !enabled;
 
         if (enabled) {
-            this.updateStatus('可以说话了，点击"按住说话"按钮进行语音输入');
+            this.updateStatus('可以说话或输入文字回答');
         } else {
             this.updateStatus('面试官正在说话，请稍等...');
         }
     }
 
     async startInterview() {
-        if (!this.resumeReady || !this.resumeParsedText || !this.resumeParsedText.trim()) {
-            this.updateStatus('请先上传 PDF 或 Word（docx）简历并成功解析', 'error');
+        if (!this.resumeReady || !this.resumeParsedText?.trim()) {
+            this.updateSetupSummary();
             return;
         }
 
-        this.updateStatus('正在开始面试...');
-        if (this.resumeModalConfirm) {
-            this.resumeModalConfirm.disabled = true;
+        const settings = this.collectSettings();
+
+        if (this.setupStartBtn) {
+            this.setupStartBtn.disabled = true;
+            this.setupStartBtn.textContent = '正在开始…';
         }
 
         try {
-            const result = await apiClient.startInterview(this.resumeParsedText.trim());
+            const result = await apiClient.startInterview(
+                this.resumeParsedText.trim(),
+                settings
+            );
             this.currentSessionId = result.session_id;
             this.isInterviewActive = true;
 
-            this.closeResumeModal();
-
-            this.startBtn.disabled = true;
+            this.showView('interview');
             this.endBtn.disabled = false;
             if (this.resumeFileInput) {
                 this.resumeFileInput.disabled = true;
@@ -379,16 +659,22 @@ class InterviewApp {
             this.chatArea.innerHTML = '';
 
             this.addMessage('assistant', result.first_question);
-
             audioPlayer.speak(result.first_question);
 
-            this.updateStatus('面试进行中...');
-
+            this.updateStatus('面试进行中…');
         } catch (error) {
             console.error('开始面试失败:', error);
-            this.updateStatus('开始面试失败，请检查后端服务是否启动', 'error');
-            if (this.resumeModalConfirm && this.resumeReady) {
-                this.resumeModalConfirm.disabled = false;
+            if (this.currentView === 'interview') {
+                this.updateStatus('开始面试失败，请检查后端服务是否启动', 'error');
+            }
+            if (this.setupStartBtn) {
+                this.setupStartBtn.disabled = false;
+                this.setupStartBtn.textContent = '开始面试';
+            }
+        } finally {
+            if (this.setupStartBtn && this.setupStartBtn.textContent === '正在开始…') {
+                this.setupStartBtn.textContent = '开始面试';
+                this.setupStartBtn.disabled = !this.resumeReady;
             }
         }
     }
@@ -437,7 +723,6 @@ class InterviewApp {
             this.addMessage('assistant', reply);
 
             audioPlayer.speak(reply);
-
         } catch (error) {
             console.error('发送消息失败:', error);
             this.updateStatus('发送失败，请重试', 'error');
@@ -467,12 +752,11 @@ class InterviewApp {
 
             this.addMessage(
                 'system',
-                '面试已结束。完整总结已生成，请点击下方「查看面试报告」打开弹窗阅读，并可下载 PDF。'
+                '面试已结束。完整总结已生成，请点击「查看面试报告」阅读，并可下载 PDF。'
             );
             this.showReportButton(summary);
 
             this.isInterviewActive = false;
-            this.startBtn.disabled = false;
             this.currentSessionId = null;
             this.resumeParsedText = '';
             this.resumeReady = false;
@@ -483,7 +767,11 @@ class InterviewApp {
             if (this.resumeHint) {
                 this.resumeHint.textContent = '当前状态：未上传';
             }
-            this.updateStatus('面试已结束，可查看报告或重新上传简历后再开始');
+            if (this.resumePreviewWrap) {
+                this.resumePreviewWrap.hidden = true;
+            }
+            this.updateSetupSummary();
+            this.updateStatus('面试已结束。可查看报告，或返回设置页重新开始');
 
         } catch (error) {
             console.error('结束面试失败:', error);
@@ -499,7 +787,9 @@ class InterviewApp {
             if (interviews.length === 0) {
                 this.historyList.innerHTML = '<p class="empty-history">暂无面试记录</p>';
             } else {
-                this.historyList.innerHTML = interviews.map(interview => `
+                this.historyList.innerHTML = interviews
+                    .map(
+                        (interview) => `
                     <div class="history-item" data-session-id="${interview.session_id}">
                         <div class="history-info">
                             <span class="history-date">${this.formatDate(interview.created_at)}</span>
@@ -510,9 +800,11 @@ class InterviewApp {
                         </div>
                         <button class="btn btn-small btn-primary view-detail-btn">查看详情</button>
                     </div>
-                `).join('');
+                `
+                    )
+                    .join('');
 
-                this.historyList.querySelectorAll('.view-detail-btn').forEach(btn => {
+                this.historyList.querySelectorAll('.view-detail-btn').forEach((btn) => {
                     btn.addEventListener('click', (e) => {
                         const sessionId = e.target.closest('.history-item').dataset.sessionId;
                         this.showHistoryDetail(sessionId);
@@ -521,7 +813,6 @@ class InterviewApp {
             }
 
             this.historyModal.style.display = 'block';
-
         } catch (error) {
             console.error('获取历史记录失败:', error);
             this.updateStatus('获取历史记录失败', 'error');
@@ -536,7 +827,7 @@ class InterviewApp {
             this.detailTitle.textContent = `面试详情 - ${this.formatDate(interview.created_at)}`;
 
             let detailHTML = '<div class="detail-messages">';
-            interview.messages.forEach(msg => {
+            interview.messages.forEach((msg) => {
                 const roleClass = msg.role === 'user' ? 'user' : 'assistant';
                 const roleText = msg.role === 'user' ? '👤 您' : '🎯 面试官';
                 detailHTML += `
@@ -559,7 +850,6 @@ class InterviewApp {
 
             this.historyDetail.innerHTML = detailHTML;
             this.historyDetailModal.style.display = 'block';
-
         } catch (error) {
             console.error('获取详情失败:', error);
             this.updateStatus('获取面试详情失败', 'error');
@@ -581,7 +871,6 @@ class InterviewApp {
             } else {
                 this.updateStatus(result.message, 'error');
             }
-
         } catch (error) {
             console.error('删除失败:', error);
             this.updateStatus('删除失败', 'error');
