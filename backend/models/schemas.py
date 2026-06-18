@@ -26,6 +26,11 @@ class StartInterviewRequest(BaseModel):
         description="解析后的简历全文",
         validation_alias=AliasChoices("resume_text", "resumeText"),
     )
+    job_role: str = Field(
+        default="java_backend",
+        description="面试岗位: java_backend / web_frontend",
+        validation_alias=AliasChoices("job_role", "jobRole"),
+    )
     settings: Optional[InterviewSettings] = Field(
         default=None,
         validation_alias=AliasChoices("settings", "interview_settings", "interviewSettings"),
@@ -106,3 +111,27 @@ class ResumePredictResponse(BaseModel):
     generated_at: str
     question_count: int
     sections: List[ResumePredictSection]
+
+
+class QuestionBankItem(BaseModel):
+    """题库浏览单题"""
+
+    id: str
+    source: str
+    category: str
+    topic: str = ""
+    difficulty: str = ""
+    question: str
+    answer: str = ""
+    follow_ups: str = ""
+
+
+class QuestionBankListResponse(BaseModel):
+    """题库浏览列表"""
+
+    job_role: str
+    total: int
+    sources: List[str]
+    categories: List[str]
+    items: List[QuestionBankItem]
+    message: str = ""

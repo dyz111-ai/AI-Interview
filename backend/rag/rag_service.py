@@ -36,13 +36,21 @@ class RAGService:
             self._collection.count(),
         )
 
-    def query(self, text: str, n_results: int = 5, category: Optional[str] = None) -> List[str]:
+    def query(self, text: str, n_results: int = 5, category: Optional[str] = None, domain: Optional[str] = None) -> List[str]:
         """
         检索与 text 最相关的知识片段。
         category 非空时按元数据 category 过滤（与 ingest 写入的标签一致）。
+        domain 非空时按元数据 domain 过滤（如 "java_backend" / "web_frontend"）。
         """
         embedding = self._model.encode([text])[0].tolist()
-        where = {"category": category} if category else None
+
+        where_conditions = {}
+        if domain:
+            where_conditions["domain"] = domain
+        if category:
+            where_conditions["category"] = category
+
+        where = where_conditions if where_conditions else None
 
         result = self._collection.query(
             query_embeddings=[embedding],

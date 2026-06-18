@@ -31,6 +31,9 @@ class InterviewSession(BaseModel):
     # 解析后的简历正文（整场会话保留，第一阶段注入模型）
     resume_plain_text: str = ""
 
+    # 面试岗位
+    job_role: str = "java_backend"
+
     # 设置页传入的本场配置
     settings: InterviewSettings = Field(default_factory=InterviewSettings)
 

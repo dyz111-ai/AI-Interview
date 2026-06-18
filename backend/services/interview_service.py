@@ -34,6 +34,7 @@ class InterviewService:
         session_id: Optional[str],
         resume_text: str,
         settings: Optional[InterviewSettings] = None,
+        job_role: str = "java_backend",
     ) -> tuple[str, str]:
         """
         开始面试（须携带 parse-resume 得到的 resume_text）
@@ -44,6 +45,11 @@ class InterviewService:
             raise ValueError(
                 f"简历有效内容过短（至少约 {Config.RESUME_MIN_CHARS_TO_START} 个字符），"
                 "请先上传 PDF 或 Word（docx）并解析成功后再开始"
+            )
+
+        if job_role not in Config.SUPPORTED_JOB_ROLES:
+            raise ValueError(
+                f"不支持的岗位类型: {job_role}。支持的岗位: {', '.join(Config.SUPPORTED_JOB_ROLES)}"
             )
 
         if not session_id:
@@ -57,11 +63,13 @@ class InterviewService:
             last_active=datetime.now(),
             resume_plain_text=stored,
             settings=interview_settings,
+            job_role=job_role,
         )
 
         resume_addon = build_resume_addon(stored)
         first_question = self.llm_service.get_first_question(
             resume_addon=resume_addon,
+            job_role=job_role,
             interview_settings=interview_settings,
         )
 
@@ -94,9 +102,10 @@ class InterviewService:
             texts, _total = sample_random_question_texts(
                 Config.RAG_DB_DIR,
                 Config.RAG_COLLECTION,
-                Config.RAG_JOB_ROLE,
+                session.job_role,
                 session.settings.bank_sample_size,
                 Config.QUESTION_BANK_MAX_CHARS_PER_ITEM,
+                domain=session.job_role,
             )
             if texts:
                 session.bank_started = True
@@ -126,7 +135,7 @@ class InterviewService:
         ):
             try:
                 k = max(1, Config.RAG_TOP_K)
-                chunks = self.rag_service.query(user_message, n_results=k)
+                chunks = self.rag_service.query(user_message, n_results=k, domain=session.job_role)
                 rag_context = self.rag_service.format_context(chunks)
                 max_chars = Config.RAG_CONTEXT_MAX_CHARS
                 if max_chars > 0 and len(rag_context) > max_chars:
@@ -138,6 +147,7 @@ class InterviewService:
             history,
             user_message,
             rag_context,
+            job_role=session.job_role,
             question_bank_addon=bank_addon,
             resume_addon=resume_addon,
             interview_settings=session.settings,
@@ -155,6 +165,7 @@ class InterviewService:
         history = session.get_history_for_llm()
         summary = self.llm_service.end_interview(
             history,
+            job_role=session.job_role,
             resume_plain_text=session.resume_plain_text or None,
         )
 

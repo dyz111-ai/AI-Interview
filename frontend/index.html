@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI面试系统 - Java后端开发工程师</title>
+    <title>AI面试系统 - Java后端 / Web前端</title>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/style.css?v=13">
+    <link rel="stylesheet" href="css/style.css?v=20">
 </head>
 <body class="app-body">
     <div class="ambient-bg" aria-hidden="true">
@@ -23,7 +23,7 @@
                 <div class="header-brand">
                     <span class="header-badge">AI MOCK INTERVIEW</span>
                     <h1>欢迎使用 AI 模拟面试系统</h1>
-                    <p class="header-subtitle">Java 后端开发工程师 · 选择功能开始使用</p>
+                    <p class="header-subtitle">Java 后端开发工程师 · Web 前端开发工程师 · 选择功能开始使用</p>
                 </div>
             </header>
 
@@ -39,17 +39,24 @@
                         <span class="welcome-hub-title">简历押题</span>
                         <span class="welcome-hub-desc">根据简历预测高频问题与答题要点</span>
                     </button>
+                    <button type="button" id="welcomeBankBtn" class="welcome-hub-card welcome-hub-card--secondary">
+                        <span class="welcome-hub-icon" aria-hidden="true">📚</span>
+                        <span class="welcome-hub-title">题库浏览</span>
+                        <span class="welcome-hub-desc">查看本地面试题库中的全部试题与参考答案</span>
+                    </button>
                     <button type="button" id="welcomeHistoryBtn" class="welcome-hub-card welcome-hub-card--secondary">
                         <span class="welcome-hub-icon" aria-hidden="true">📋</span>
                         <span class="welcome-hub-title">历史记录</span>
                         <span class="welcome-hub-desc">查看往期对话与面试总结报告</span>
                     </button>
+                    <button type="button" id="welcomeGrowthBtn" class="welcome-hub-card welcome-hub-card--accent">
+                        <span class="welcome-hub-icon" aria-hidden="true">📈</span>
+                        <span class="welcome-hub-title">个人成长</span>
+                        <span class="welcome-hub-desc">能力趋势、薄弱点分析与进步曲线</span>
+                    </button>
                 </nav>
             </div>
 
-            <footer class="site-footer">
-                <span>本地会话 · 数据保存在本机</span>
-            </footer>
         </section>
 
         <section id="viewSetup" class="app-view" aria-label="面试设置" hidden>
@@ -76,7 +83,17 @@
                 </div>
 
                 <div class="setup-section">
-                    <h2 class="setup-section-title">② 面试风格</h2>
+                    <h2 class="setup-section-title">② 面试岗位</h2>
+                    <div class="setup-row">
+                        <select id="jobRoleSelect" class="setup-select">
+                            <option value="java_backend">☕ Java后端开发工程师</option>
+                            <option value="web_frontend">🎨 Web前端开发工程师</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="setup-section">
+                    <h2 class="setup-section-title">③ 面试风格</h2>
                     <div class="option-cards" role="radiogroup" aria-label="面试官风格">
                         <label class="option-card">
                             <input type="radio" name="interviewStyle" value="gentle">
@@ -111,7 +128,7 @@
                 </div>
 
                 <div class="setup-section">
-                    <h2 class="setup-section-title">③ 节奏与内容</h2>
+                    <h2 class="setup-section-title">④ 节奏与内容</h2>
                     <div class="setup-row">
                         <label class="setup-label" for="durationSelect">预计时长</label>
                         <select id="durationSelect" class="setup-select">
@@ -211,42 +228,145 @@
             </div>
         </section>
 
-        <section id="viewInterview" class="app-view" aria-label="面试对话" hidden>
-            <header class="site-header site-header--compact site-header--interview">
-                <div class="header-brand">
-                    <h1>AI 模拟面试</h1>
-                    <p class="header-subtitle">对话进行中</p>
+        <section id="viewBank" class="app-view" aria-label="题库浏览" hidden>
+            <header class="site-header site-header--compact">
+                <div>
+                    <h1>📚 题库浏览</h1>
+                    <p class="header-subtitle">本地面试题库 · Java 后端</p>
                 </div>
-                <button type="button" id="interviewSettingsBtn" class="btn btn-ghost btn-small">调整设置</button>
+                <button type="button" id="bankBackBtn" class="btn btn-ghost btn-small">← 返回</button>
             </header>
 
-            <div class="interview-panel">
-                <div class="panel-label">
-                    <span class="panel-label-dot"></span>
-                    对话区
+            <div class="bank-body" id="bankBody">
+                <div class="bank-toolbar">
+                    <input type="search" id="bankSearchInput" class="bank-search" placeholder="搜索题目关键词…" autocomplete="off">
+                    <select id="bankSourceFilter" class="bank-select" aria-label="按来源筛选">
+                        <option value="">全部来源</option>
+                    </select>
+                    <select id="bankCategoryFilter" class="bank-select" aria-label="按分类筛选">
+                        <option value="">全部分类</option>
+                    </select>
                 </div>
-                <div class="chat-area" id="chatArea">
-                    <div class="message system">
-                        <span class="role">系统</span>
-                        <p>面试即将开始，对话将显示在这里。</p>
+                <div id="bankStatus" class="bank-status" role="status" aria-live="polite"></div>
+                <div id="bankStats" class="bank-stats"></div>
+                <div id="bankList" class="bank-list"></div>
+            </div>
+        </section>
+
+        <section id="viewInterview" class="app-view" aria-label="面试对话" hidden>
+            <div class="interview-layout">
+                <!-- 左侧信息栏 -->
+                <aside class="interview-sidebar" id="interviewSidebar">
+                    <div class="is-section">
+                        <div class="is-section-title">⚙️ 本场配置</div>
+                        <div class="is-info-grid" id="isSettings">
+                            <p class="is-empty">等待面试开始…</p>
+                        </div>
+                    </div>
+                    <div class="is-section is-section--grow">
+                        <div class="is-section-title">📜 历史记录</div>
+                        <div class="is-history-list" id="isHistoryList">
+                            <p class="is-empty">暂无记录</p>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- 右侧对话区 -->
+                <div class="interview-main">
+                    <header class="site-header site-header--compact site-header--interview">
+                        <div class="header-brand">
+                            <h1>AI 模拟面试</h1>
+                            <p class="header-subtitle">对话进行中</p>
+                        </div>
+                        <button type="button" id="interviewSettingsBtn" class="btn btn-ghost btn-small">调整设置</button>
+                    </header>
+
+                    <div class="interview-panel">
+                        <div class="panel-label">
+                            <span class="panel-label-dot"></span>
+                            对话区
+                        </div>
+                        <div class="chat-area" id="chatArea">
+                            <div class="message system">
+                                <span class="role">系统</span>
+                                <p>面试即将开始，对话将显示在这里。</p>
+                            </div>
+                        </div>
+                        <div class="controls">
+                            <button id="recordBtn" class="btn btn-record" disabled>按住说话</button>
+                            <button id="endBtn" class="btn btn-danger" disabled>结束面试</button>
+                            <button type="button" id="viewReportBtn" class="btn btn-accent btn-hidden" disabled>查看面试报告</button>
+                            <button id="historyBtn" class="btn btn-secondary">历史记录</button>
+                        </div>
+                        <div class="status" id="status">准备中…</div>
+                        <div class="manual-input" id="manualInputRow">
+                            <input type="text" id="manualInput" placeholder="输入文字回复，按 Enter 发送…" disabled>
+                            <button id="sendBtn" class="btn btn-send" disabled>发送</button>
+                        </div>
                     </div>
                 </div>
-                <div class="controls">
-                    <button id="recordBtn" class="btn btn-record" disabled>按住说话</button>
-                    <button id="endBtn" class="btn btn-danger" disabled>结束面试</button>
-                    <button type="button" id="viewReportBtn" class="btn btn-accent btn-hidden" disabled>查看面试报告</button>
-                    <button id="historyBtn" class="btn btn-secondary">历史记录</button>
+            </div>
+        </section>
+
+        <section id="viewGrowth" class="app-view" aria-label="个人成长" hidden>
+        <header class="site-header site-header--compact">
+            <div>
+                <h1>📈 个人成长分析</h1>
+                <p class="header-subtitle">基于历史面试数据的趋势与洞察</p>
+            </div>
+            <button type="button" id="growthBackBtn" class="btn btn-ghost btn-small">← 返回</button>
+        </header>
+
+        <div class="growth-body" id="growthBody">
+            <!-- 空状态 -->
+            <div class="growth-empty" id="growthEmpty">
+                <div class="growth-empty-icon">📊</div>
+                <h3>还没有面试记录</h3>
+                <p>完成一场模拟面试后，这里会出现你的个人成长分析、能力趋势图和薄弱点统计</p>
+            </div>
+
+            <!-- 数据内容 -->
+            <div class="growth-content" id="growthContent" hidden>
+                <!-- 总览卡片 -->
+                <div class="growth-cards" id="growthCards"></div>
+
+                <!-- 图表区 -->
+                <div class="growth-charts">
+                    <div class="growth-chart-box">
+                        <h3>五维度能力趋势</h3>
+                        <div class="chart-wrap"><canvas id="chartTrend"></canvas></div>
+                    </div>
+                    <div class="growth-chart-box">
+                        <h3>最新能力图谱</h3>
+                        <div class="chart-wrap chart-wrap--radar"><canvas id="chartRadar"></canvas></div>
+                    </div>
                 </div>
-                <div class="status" id="status">准备中…</div>
-                <div class="manual-input" id="manualInputRow">
-                    <input type="text" id="manualInput" placeholder="输入文字回复，按 Enter 发送…" disabled>
-                    <button id="sendBtn" class="btn btn-send" disabled>发送</button>
+                <div class="growth-charts">
+                    <div class="growth-chart-box">
+                        <h3>薄弱知识点频次</h3>
+                        <div class="chart-wrap"><canvas id="chartWeak"></canvas></div>
+                    </div>
+                    <div class="growth-chart-box">
+                        <h3>面试结论分布</h3>
+                        <div class="chart-wrap chart-wrap--donut"><canvas id="chartConclusion"></canvas></div>
+                    </div>
+                </div>
+
+                <!-- 历史明细表 -->
+                <div class="growth-table-wrap">
+                    <h3>历次面试明细</h3>
+                    <div class="growth-table-scroll">
+                        <table class="growth-table" id="growthTable">
+                            <thead><tr>
+                                <th>日期</th><th>均分</th><th>专业基础</th><th>项目表达</th><th>问题分析</th><th>沟通表达</th><th>岗位匹配</th><th>结论</th><th>薄弱点</th>
+                            </tr></thead>
+                            <tbody id="growthTableBody"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
-            <footer class="site-footer">
-                <span>本地会话 · 数据保存在本机</span>
-            </footer>
-        </section>
+        </div>
+    </section>
     </div>
 
     <div id="summaryReportModal" class="modal">
@@ -291,6 +411,7 @@
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" crossorigin="anonymous"></script>
     <script src="js/api_client.js?v=12"></script>
     <script src="js/audio_recorder.js?v=12"></script>

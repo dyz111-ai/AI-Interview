@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 import random
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +17,11 @@ def sample_random_question_texts(
     job_role: str,
     k: int,
     max_chars_per_item: int,
+    domain: Optional[str] = None,
 ) -> Tuple[List[str], int]:
     """
     随机抽取 k 条文档正文（过长则截断）。
+    优先按 category="面试题库" 筛选，再按 domain 二次过滤。
     返回 (文本列表, 库内总条数)；失败返回 ([], 0)。
     """
     try:
@@ -40,12 +42,27 @@ def sample_random_question_texts(
         return [], 0
 
     try:
-        # 优先「面试题库」category；否则按 job_role（历史数据）
+        # 优先按 category="面试题库" 获取
         raw = coll.get(where={"category": "面试题库"}, include=["documents", "metadatas"])
         ids = raw.get("ids") or []
-        if not ids:
-            raw = coll.get(where={"job_role": job_role}, include=["documents", "metadatas"])
-            ids = raw.get("ids") or []
+        metadatas = raw.get("metadatas") or []
+
+        # 如果指定了 domain，按 domain 过滤
+        if domain and ids:
+            filtered_ids = []
+            for idx, meta in zip(ids, metadatas):
+                if meta and meta.get("domain") == domain:
+                    filtered_ids.append(idx)
+            ids = filtered_ids
+
+        # 兼容旧数据：无 domain 时按 job_role 过滤
+        if not domain and job_role and ids:
+            filtered_ids = []
+            for idx, meta in zip(ids, metadatas):
+                if meta and meta.get("job_role") == job_role:
+                    filtered_ids.append(idx)
+            if filtered_ids:
+                ids = filtered_ids
     except Exception as e:
         logger.warning("读取题库 id 失败: %s", e)
         return [], 0

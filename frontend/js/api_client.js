@@ -60,13 +60,13 @@ class APIClient {
         return response.json();
     }
 
-    async startInterview(resumeText, settings) {
+    async startInterview(resumeText, settings, jobRole) {
         // 空串会触发后端 min_length=1，返回 422
         const text = typeof resumeText === 'string' ? resumeText.trim() : String(resumeText ?? '').trim();
         if (!text) {
             throw new Error('简历内容为空。请重新上传能复制出文字的 PDF 或 docx（图片型 PDF 无法识别）。');
         }
-        const data = { resume_text: text };
+        const data = { resume_text: text, job_role: jobRole || 'java_backend' };
         if (settings && typeof settings === 'object') {
             data.settings = settings;
         }
@@ -125,6 +125,10 @@ class APIClient {
             question_count: questionCount,
             focus_areas: focusAreas || [],
         });
+    }
+
+    async getQuestionBank(jobRole = 'java_backend') {
+        return this.request(`/api/question-bank/list?job_role=${encodeURIComponent(jobRole)}`, 'GET');
     }
 }
 

@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import Config
 from .services.interview_service import InterviewService
 from .services.resume_predict_service import ResumePredictService
+from .services.question_bank_browse_service import QuestionBankBrowseService
 from .models.schemas import (
     ChatRequest, ChatResponse,
     StartInterviewRequest, StartInterviewResponse,
@@ -11,6 +12,7 @@ from .models.schemas import (
     ParseResumeResponse,
     ResumePredictRequest,
     ResumePredictResponse,
+    QuestionBankListResponse,
 )
 from .utils.resume_parser import extract_text_from_upload
 
@@ -26,6 +28,7 @@ app.add_middleware(
 
 interview_service = InterviewService()
 resume_predict_service = ResumePredictService()
+question_bank_browse_service = QuestionBankBrowseService()
 
 @app.get("/")
 async def root():
@@ -81,6 +84,13 @@ async def generate_resume_predict(request: ResumePredictRequest):
     return ResumePredictResponse(**result)
 
 
+@app.get("/api/question-bank/list", response_model=QuestionBankListResponse)
+async def list_question_bank(job_role: str = "java_backend"):
+    """浏览本地面试题库（Markdown 源文件）。"""
+    result = question_bank_browse_service.list_questions(job_role=job_role)
+    return QuestionBankListResponse(**result)
+
+
 @app.post("/api/interview/start", response_model=StartInterviewResponse)
 async def start_interview(request: StartInterviewRequest):
     """
@@ -91,6 +101,7 @@ async def start_interview(request: StartInterviewRequest):
             request.session_id,
             request.resume_text,
             request.settings,
+            request.job_role,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -11,6 +11,17 @@ class InterviewApp {
         this.viewSetup = document.getElementById('viewSetup');
         this.viewPredict = document.getElementById('viewPredict');
         this.viewInterview = document.getElementById('viewInterview');
+        this.viewGrowth = document.getElementById('viewGrowth');
+        this.viewBank = document.getElementById('viewBank');
+
+        this.bankSearchInput = document.getElementById('bankSearchInput');
+        this.bankSourceFilter = document.getElementById('bankSourceFilter');
+        this.bankCategoryFilter = document.getElementById('bankCategoryFilter');
+        this.bankStatusEl = document.getElementById('bankStatus');
+        this.bankStatsEl = document.getElementById('bankStats');
+        this.bankListEl = document.getElementById('bankList');
+        this.bankItems = [];
+        this.bankLoaded = false;
 
         this.predictResumeFileInput = document.getElementById('predictResumeFileInput');
         this.predictResumeHint = document.getElementById('predictResumeHint');
@@ -59,8 +70,21 @@ class InterviewApp {
     init() {
         document.getElementById('welcomeMockBtn')?.addEventListener('click', () => this.showView('setup'));
         document.getElementById('welcomePredictBtn')?.addEventListener('click', () => this.showView('predict'));
+        document.getElementById('welcomeBankBtn')?.addEventListener('click', () => this.showBank());
         document.getElementById('welcomeHistoryBtn')?.addEventListener('click', () => this.showHistory());
+        document.getElementById('welcomeGrowthBtn')?.addEventListener('click', () => this.showGrowth());
+        document.getElementById('growthBackBtn')?.addEventListener('click', () => this.showView('welcome'));
+        document.getElementById('bankBackBtn')?.addEventListener('click', () => this.showView('welcome'));
         document.getElementById('predictBackBtn')?.addEventListener('click', () => this.showView('welcome'));
+        if (this.bankSearchInput) {
+            this.bankSearchInput.addEventListener('input', () => this.renderBankList());
+        }
+        if (this.bankSourceFilter) {
+            this.bankSourceFilter.addEventListener('change', () => this.renderBankList());
+        }
+        if (this.bankCategoryFilter) {
+            this.bankCategoryFilter.addEventListener('change', () => this.renderBankList());
+        }
         if (this.predictResumeFileInput) {
             this.predictResumeFileInput.addEventListener('change', (e) => this.onPredictResumeFileSelected(e));
         }
@@ -168,7 +192,9 @@ class InterviewApp {
             ['welcome', this.viewWelcome],
             ['setup', this.viewSetup],
             ['predict', this.viewPredict],
+            ['bank', this.viewBank],
             ['interview', this.viewInterview],
+            ['growth', this.viewGrowth],
         ];
         views.forEach(([key, el]) => {
             if (!el) return;
@@ -304,6 +330,102 @@ class InterviewApp {
         return div.innerHTML;
     }
 
+    setBankStatus(message, type = 'info') {
+        if (!this.bankStatusEl) return;
+        this.bankStatusEl.textContent = message || '';
+        this.bankStatusEl.dataset.status = type === 'error' ? 'error' : type === 'loading' ? 'loading' : 'info';
+    }
+
+    async showBank() {
+        this.showView('bank');
+        if (this.bankLoaded && this.bankItems.length) {
+            this.renderBankList();
+            return;
+        }
+        this.setBankStatus('正在加载题库…', 'loading');
+        if (this.bankListEl) this.bankListEl.innerHTML = '';
+        if (this.bankStatsEl) this.bankStatsEl.textContent = '';
+        try {
+            const data = await apiClient.getQuestionBank('java_backend');
+            this.bankItems = data.items || [];
+            this.bankLoaded = true;
+            this.populateBankFilters(data.sources || [], data.categories || []);
+            if (!this.bankItems.length) {
+                this.setBankStatus(data.message || '题库为空，请检查 data/java_backend/interview_questions 目录', 'error');
+                return;
+            }
+            this.setBankStatus('');
+            this.renderBankList();
+        } catch (e) {
+            console.error('题库加载失败:', e);
+            this.setBankStatus(e.message || '题库加载失败', 'error');
+        }
+    }
+
+    populateBankFilters(sources, categories) {
+        if (this.bankSourceFilter) {
+            const cur = this.bankSourceFilter.value;
+            this.bankSourceFilter.innerHTML = '<option value="">全部来源</option>' +
+                sources.map((s) => `<option value="${this.escapeHtml(s)}">${this.escapeHtml(s)}</option>`).join('');
+            this.bankSourceFilter.value = sources.includes(cur) ? cur : '';
+        }
+        if (this.bankCategoryFilter) {
+            const cur = this.bankCategoryFilter.value;
+            this.bankCategoryFilter.innerHTML = '<option value="">全部分类</option>' +
+                categories.map((c) => `<option value="${this.escapeHtml(c)}">${this.escapeHtml(c)}</option>`).join('');
+            this.bankCategoryFilter.value = categories.includes(cur) ? cur : '';
+        }
+    }
+
+    getFilteredBankItems() {
+        const q = (this.bankSearchInput?.value || '').trim().toLowerCase();
+        const source = this.bankSourceFilter?.value || '';
+        const category = this.bankCategoryFilter?.value || '';
+        return this.bankItems.filter((item) => {
+            if (source && item.source !== source) return false;
+            if (category && item.category !== category) return false;
+            if (!q) return true;
+            const hay = [
+                item.question,
+                item.category,
+                item.topic,
+                item.source,
+                item.answer,
+            ].join(' ').toLowerCase();
+            return hay.includes(q);
+        });
+    }
+
+    renderBankList() {
+        if (!this.bankListEl) return;
+        const filtered = this.getFilteredBankItems();
+        if (this.bankStatsEl) {
+            this.bankStatsEl.textContent = `共 ${this.bankItems.length} 题 · 当前显示 ${filtered.length} 题`;
+        }
+        if (!filtered.length) {
+            this.bankListEl.innerHTML = '<p class="bank-empty">没有匹配的题目，试试调整筛选条件</p>';
+            return;
+        }
+        this.bankListEl.innerHTML = filtered.map((item, idx) => {
+            const meta = [
+                item.category,
+                item.difficulty ? `难度：${item.difficulty}` : '',
+                item.source,
+            ].filter(Boolean).map((t) => `<span class="bank-tag">${this.escapeHtml(t)}</span>`).join('');
+            const answer = (item.answer || '').trim();
+            const followUps = (item.follow_ups || '').trim();
+            return `<article class="bank-item" data-id="${this.escapeHtml(item.id)}">
+                <div class="bank-item-head">
+                    <span class="bank-item-num">${idx + 1}</span>
+                    <h3 class="bank-item-q">${this.escapeHtml(item.question)}</h3>
+                </div>
+                <div class="bank-item-meta">${meta}</div>
+                ${answer ? `<details class="bank-item-answer"><summary>参考答案</summary><pre class="bank-answer-text">${this.escapeHtml(answer)}</pre></details>` : ''}
+                ${followUps ? `<details class="bank-item-follow"><summary>追问点</summary><pre class="bank-answer-text">${this.escapeHtml(followUps)}</pre></details>` : ''}
+            </article>`;
+        }).join('');
+    }
+
     buildPredictMarkdown(sections) {
         let md = '# 简历押题结果\n\n';
         let qIndex = 0;
@@ -394,6 +516,7 @@ class InterviewApp {
         ).map((el) => el.value);
 
         return {
+            job_role: document.getElementById('jobRoleSelect')?.value || 'java_backend',
             interview_style: styleEl?.value || 'standard',
             depth: document.getElementById('depthSelect')?.value || 'standard',
             duration_minutes: parseInt(document.getElementById('durationSelect')?.value || '20', 10),
@@ -643,7 +766,8 @@ class InterviewApp {
         try {
             const result = await apiClient.startInterview(
                 this.resumeParsedText.trim(),
-                settings
+                settings,
+                settings.job_role
             );
             this.currentSessionId = result.session_id;
             this.isInterviewActive = true;
@@ -657,6 +781,8 @@ class InterviewApp {
 
             this.hideReportButton();
             this.chatArea.innerHTML = '';
+            this.populateInterviewSidebar(settings);
+            this.refreshInterviewSidebarHistory();
 
             this.addMessage('assistant', result.first_question);
             audioPlayer.speak(result.first_question);
@@ -771,6 +897,7 @@ class InterviewApp {
                 this.resumePreviewWrap.hidden = true;
             }
             this.updateSetupSummary();
+            this.refreshInterviewSidebarHistory();
             this.updateStatus('面试已结束。可查看报告，或返回设置页重新开始');
 
         } catch (error) {
@@ -877,6 +1004,55 @@ class InterviewApp {
         }
     }
 
+    populateInterviewSidebar(settings) {
+        const el = document.getElementById('isSettings');
+        if (!el) return;
+        const styleMap = { gentle: '温和鼓励型', standard: '标准专业型', pressure: '压力面型' };
+        const depthMap = { basic: '基础', standard: '标准', deep: '深入' };
+        const focusNames = {
+            java_basic: 'Java基础', java_collection: 'Java集合', concurrent: '并发编程',
+            jvm: 'JVM/GC', thread_pool: '线程池', spring: 'Spring Boot', spring_cloud: '微服务',
+            database: 'MySQL', sql_optimize: 'SQL优化', redis: 'Redis', mq: '消息队列',
+            distributed: '分布式', system_design: '系统设计', performance: '性能优化',
+            network: '网络/HTTP', io_nio: 'IO/NIO', design_pattern: '设计模式',
+            algorithm: '算法', security: '安全鉴权', docker_k8s: 'Docker/K8s',
+            engineering: '工程实践', project: '项目深挖', behavioral: '行为面试',
+        };
+        const focuses = (settings.focus_areas || []).map(f => focusNames[f] || f).join('、') || '未指定';
+        const parts = [
+            ['风格', styleMap[settings.interview_style] || settings.interview_style],
+            ['深度', depthMap[settings.depth] || settings.depth],
+            ['时长', `约 ${settings.duration_minutes} 分钟`],
+            ['侧重', focuses],
+        ];
+        el.innerHTML = parts.map(([label, val]) =>
+            `<div class="is-info-item"><span class="is-label">${label}</span><br>${val}</div>`
+        ).join('');
+    }
+
+    async refreshInterviewSidebarHistory() {
+        const list = document.getElementById('isHistoryList');
+        if (!list) return;
+        try {
+            const interviews = await apiClient.getInterviewHistory();
+            if (!interviews || interviews.length === 0) {
+                list.innerHTML = '<p class="is-empty">暂无记录</p>';
+                return;
+            }
+            list.innerHTML = interviews.slice(0, 10).map(iv => {
+                const preview = (iv.summary || '暂无总结').substring(0, 24);
+                const date = this.formatDate(iv.created_at);
+                return `<div class="is-history-item" data-sid="${iv.session_id}">
+                    <div class="is-history-item-date">${date}</div>
+                    <div class="is-history-item-preview">${preview}…</div>
+                </div>`;
+            }).join('');
+            list.querySelectorAll('.is-history-item').forEach(el => {
+                el.addEventListener('click', () => this.showHistoryDetail(el.dataset.sid));
+            });
+        } catch (_) { /* ignore */ }
+    }
+
     formatDate(dateStr) {
         const date = new Date(dateStr);
         const year = date.getFullYear();
@@ -885,6 +1061,227 @@ class InterviewApp {
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
         return `${year}-${month}-${day} ${hours}:${minutes}`;
+    }
+
+    // ── Growth view ──
+    async showGrowth() {
+        this.showView('growth');
+        try {
+            const interviews = await apiClient.getInterviewHistory();
+            const parsed = interviews.map(iv => ({
+                ...iv,
+                scores: this._parseScores(iv.summary || ''),
+                conclusion: this._parseConclusion(iv.summary || ''),
+                weakPoints: this._parseWeakPoints(iv.summary || ''),
+            })).filter(p => p.scores);
+
+            const emptyEl = document.getElementById('growthEmpty');
+            const contentEl = document.getElementById('growthContent');
+            if (!parsed.length) {
+                if (emptyEl) emptyEl.hidden = false;
+                if (contentEl) contentEl.hidden = true;
+                return;
+            }
+            if (emptyEl) emptyEl.hidden = true;
+            if (contentEl) contentEl.hidden = false;
+
+            // Overview cards
+            const total = parsed.length;
+            const latest = parsed[0];
+            const latestAvg = latest.scores ? Math.round(Object.values(latest.scores).reduce((a,b)=>a+b,0)/5) : 0;
+            const passCount = parsed.filter(p => p.conclusion === '推荐通过').length;
+            const passRate = Math.round(passCount / total * 100);
+            const prevAvg = parsed.length >= 2 && parsed[1].scores
+                ? Math.round(Object.values(parsed[1].scores).reduce((a,b)=>a+b,0)/5) : null;
+            const trend = prevAvg !== null ? (latestAvg >= prevAvg ? '↑ 上升' : '↓ 下降') : '—';
+            const trendCls = prevAvg !== null ? (latestAvg >= prevAvg ? 'trend-up' : 'trend-down') : '';
+
+            const cards = [
+                { icon: '📋', value: `${total} 次`, label: '面试总场次', sub: `含 ${parsed.filter(p=>p.conclusion==='推荐通过').length} 次通过` },
+                { icon: '✅', value: `${passRate}%`, label: '推荐通过率', sub: `${passCount}/${total} 场推荐` },
+                { icon: '⭐', value: `${latestAvg} 分`, label: '最近均分', sub: this.formatDate(parsed[0].created_at) },
+                { icon: prevAvg !== null ? (latestAvg >= prevAvg ? '📈' : '📉') : '📊', value: trend, label: '趋势（较上场）', sub: prevAvg !== null ? `上次均分 ${prevAvg} 分` : '暂无对比', cls: trendCls },
+            ];
+            document.getElementById('growthCards').innerHTML = cards.map(c =>
+                `<div class="growth-card">
+                    <span class="growth-card-icon">${c.icon}</span>
+                    <div class="growth-card-value ${c.cls||''}">${c.value}</div>
+                    <div class="growth-card-label">${c.label}</div>
+                    <div class="growth-card-sub">${c.sub}</div>
+                </div>`
+            ).join('');
+
+            // Table
+            const jobMap = { java_backend: 'Java', web_frontend: '前端' };
+            document.getElementById('growthTableBody').innerHTML = parsed.map(p => {
+                const s = p.scores || {};
+                const avg = Math.round(Object.values(s).reduce((a,b)=>a+b,0)/5);
+                const weak = (p.weakPoints || []).slice(0, 3).join('、') || '—';
+                const concMap = { '推荐通过': 'gt-pass', '基本通过': 'gt-basic', '暂不通过': 'gt-fail', '建议继续准备': 'gt-prepare' };
+                return `<tr data-sid="${p.session_id}">
+                    <td>${this.formatDate(p.created_at)}</td>
+                    <td><b>${avg}</b></td>
+                    <td>${s['专业基础能力']||'—'}</td>
+                    <td>${s['项目表达能力']||'—'}</td>
+                    <td>${s['问题分析能力']||'—'}</td>
+                    <td>${s['沟通表达能力']||'—'}</td>
+                    <td>${s['岗位匹配程度']||'—'}</td>
+                    <td class="gt-conclusion ${concMap[p.conclusion]||''}">${p.conclusion||'—'}</td>
+                    <td>${weak}</td>
+                </tr>`;
+            }).join('');
+            document.querySelectorAll('#growthTableBody tr').forEach(tr => {
+                tr.addEventListener('click', () => this.showHistoryDetail(tr.dataset.sid));
+            });
+
+            // Charts — delay to let DOM layout complete
+            await new Promise(r => setTimeout(r, 100));
+            this._renderTrendChart(parsed);
+            this._renderRadarChart(latest);
+            this._renderWeakChart(parsed);
+            this._renderConclusionChart(parsed);
+        } catch (e) {
+            console.error('Growth view error:', e);
+        }
+    }
+
+    _parseScores(summary) {
+        const dims = ['专业基础能力', '项目表达能力', '问题分析能力', '沟通表达能力', '岗位匹配程度'];
+        const out = {};
+        dims.forEach(d => {
+            const re = new RegExp(d.replace(/[+-]/g,'\\$&') + '[^0-9]*?(\\d{1,3})\\s*分');
+            const m = summary.match(re);
+            if (m) out[d] = parseInt(m[1]);
+        });
+        return Object.keys(out).length >= 3 ? out : null;
+    }
+
+    _parseConclusion(summary) {
+        const m = summary.match(/(推荐通过|基本通过|暂不通过|建议继续准备)/);
+        return m ? m[1] : '';
+    }
+
+    _parseWeakPoints(summary) {
+        const keywords = [
+            'JVM', 'GC', '并发', '锁', '线程池', '集合', 'IO', 'NIO', 'Netty',
+            'Spring', 'Spring Boot', 'MyBatis', '微服务', '分布式', 'CAP',
+            'MySQL', 'SQL', '索引', '事务', 'Redis', '缓存', '消息队列', 'MQ',
+            '设计模式', '算法', '数据结构', 'HTTP', 'TCP', 'REST',
+            '系统设计', '性能优化', '安全', 'Docker', 'K8s', '容器化',
+            '项目表达', '沟通', '结构化', '量化',
+        ];
+        // find the "薄弱知识点" section
+        const sec = summary.match(/五[、,]\s*薄弱知识点([\s\S]*?)(?=六[、,]|七[、,]|$)/);
+        const text = sec ? sec[1] : '';
+        const found = keywords.filter(k => text.includes(k));
+        return found.slice(0, 6);
+    }
+
+    _renderTrendChart(parsed) {
+        const ctx = document.getElementById('chartTrend')?.getContext('2d');
+        if (!ctx) return;
+        if (this._trendChart) this._trendChart.destroy();
+        const dims = ['专业基础能力', '项目表达能力', '问题分析能力', '沟通表达能力', '岗位匹配程度'];
+        const colors = ['#22d3ee', '#fbbf24', '#a78bfa', '#34d399', '#fb7185'];
+        const labels = parsed.map(p => this.formatDate(p.created_at).slice(5)).reverse();
+        const datasets = dims.map((d, i) => ({
+            label: d,
+            data: parsed.map(p => (p.scores||{})[d]||null).reverse(),
+            borderColor: colors[i],
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 3,
+        }));
+        this._trendChart = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { labels: { color: '#94a3b8', font: { size: 11 }, usePointStyle: true, padding: 16 } } },
+                scales: {
+                    x: { ticks: { color: '#64748b' }, grid: { color: 'rgba(148,163,184,0.06)' } },
+                    y: { min: 0, max: 100, ticks: { color: '#64748b', stepSize: 20 }, grid: { color: 'rgba(148,163,184,0.06)' } },
+                },
+            },
+        });
+    }
+
+    _renderRadarChart(latest) {
+        const ctx = document.getElementById('chartRadar')?.getContext('2d');
+        if (!ctx || !latest.scores) return;
+        if (this._radarChart) this._radarChart.destroy();
+        const dims = ['专业基础能力', '项目表达能力', '问题分析能力', '沟通表达能力', '岗位匹配程度'];
+        this._radarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: dims.map(d => d.replace('能力','').replace('程度','')),
+                datasets: [{
+                    label: '当前',
+                    data: dims.map(d => (latest.scores||{})[d]||0),
+                    backgroundColor: 'rgba(34,211,238,0.15)',
+                    borderColor: '#22d3ee',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#22d3ee',
+                }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    r: {
+                        min: 0, max: 100,
+                        ticks: { display: false, stepSize: 20 },
+                        pointLabels: { color: '#94a3b8', font: { size: 11 } },
+                        grid: { color: 'rgba(148,163,184,0.12)' },
+                    },
+                },
+            },
+        });
+    }
+
+    _renderWeakChart(parsed) {
+        const ctx = document.getElementById('chartWeak')?.getContext('2d');
+        if (!ctx) return;
+        if (this._weakChart) this._weakChart.destroy();
+        const counts = {};
+        parsed.forEach(p => (p.weakPoints||[]).forEach(w => { counts[w] = (counts[w]||0)+1; }));
+        const entries = Object.entries(counts).sort((a,b) => b[1]-a[1]).slice(0, 10);
+        this._weakChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: entries.map(e => e[0]),
+                datasets: [{ data: entries.map(e => e[1]), backgroundColor: '#fbbf24', borderRadius: 4 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { ticks: { color: '#64748b', stepSize: 1 }, grid: { color: 'rgba(148,163,184,0.06)' } },
+                    y: { ticks: { color: '#94a3b8', font: { size: 11 } }, grid: { display: false } },
+                },
+            },
+        });
+    }
+
+    _renderConclusionChart(parsed) {
+        const ctx = document.getElementById('chartConclusion')?.getContext('2d');
+        if (!ctx) return;
+        if (this._conclusionChart) this._conclusionChart.destroy();
+        const counts = {};
+        parsed.forEach(p => { const c = p.conclusion||'未知'; counts[c] = (counts[c]||0)+1; });
+        const order = ['推荐通过', '基本通过', '暂不通过', '建议继续准备'];
+        const colors = ['#34d399', '#fbbf24', '#fb7185', '#64748b'];
+        this._conclusionChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: order.filter(k => counts[k]),
+                datasets: [{ data: order.filter(k => counts[k]).map(k => counts[k]), backgroundColor: order.filter(k => counts[k]).map((_,i) => colors[i]), borderWidth: 0 }],
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 14, usePointStyle: true } } },
+            },
+        });
     }
 }
 

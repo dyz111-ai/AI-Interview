@@ -20,7 +20,12 @@ class Config:
     # DeepSeek配置
     DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "sk-2f81ce925baa46d38bda44602934fec8")
     DEEPSEEK_BASE_URL = "https://api.deepseek.com/v1"
-    
+    LLM_MODEL = os.getenv("LLM_MODEL", "deepseek-chat")
+
+    # 支持的岗位
+    SUPPORTED_JOB_ROLES = ["java_backend", "web_frontend"]
+    DEFAULT_JOB_ROLE = os.getenv("DEFAULT_JOB_ROLE", "java_backend")
+
     # 服务器配置
     HOST = "127.0.0.1"
     PORT = 8000
@@ -53,7 +58,7 @@ class Config:
     # 构建向量库：在项目根执行 python -m backend.rag.ingest
     RAG_ENABLED = os.getenv("RAG_ENABLED", "false").lower() in ("1", "true", "yes")
     RAG_DB_DIR = os.getenv("RAG_DB_DIR", str(DATA_DIR / "chroma_db"))
-    RAG_COLLECTION = os.getenv("RAG_COLLECTION", "java_backend")
+    RAG_COLLECTION = os.getenv("RAG_COLLECTION", "knowledge_base")
     # RAGService 使用的 SentenceTransformer 本地路径（目录不存在时可设环境变量指向其他路径或 HF 模型名）
     RAG_ST_MODEL_PATH = os.getenv(
         "RAG_ST_MODEL_PATH",

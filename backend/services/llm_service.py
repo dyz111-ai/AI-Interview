@@ -27,6 +27,7 @@ class LLMService:
         user_message: str,
         rag_context: str = "",
         *,
+        job_role: str = "java_backend",
         question_bank_addon: Optional[str] = None,
         resume_addon: Optional[str] = None,
         interview_settings: Optional[InterviewSettings] = None,
@@ -36,7 +37,7 @@ class LLMService:
         题库附加说明优先于简历摘录；无题库时注入简历或 RAG 参考块。
         """
         try:
-            system_content = get_system_prompt()
+            system_content = get_system_prompt(job_role)
             if interview_settings:
                 system_content = system_content + "\n\n" + build_interview_style_addon(interview_settings)
             if question_bank_addon:
@@ -57,7 +58,7 @@ class LLMService:
             messages.append({"role": "user", "content": user_message})
 
             response = self.client.chat.completions.create(
-                model="deepseek-chat",
+                model=Config.LLM_MODEL,
                 messages=messages,
                 temperature=Config.TEMPERATURE,
                 max_tokens=Config.MAX_TOKENS,
@@ -71,6 +72,7 @@ class LLMService:
         self,
         resume_addon: Optional[str] = None,
         *,
+        job_role: str = "java_backend",
         interview_settings: Optional[InterviewSettings] = None,
     ) -> str:
         """首轮：结合简历与开场方式提问。"""
@@ -81,6 +83,7 @@ class LLMService:
             [],
             get_first_question_user_prompt(opening),
             rag_context="",
+            job_role=job_role,
             resume_addon=resume_addon,
             interview_settings=interview_settings,
         )
@@ -89,11 +92,12 @@ class LLMService:
         self,
         history: List[Dict[str, str]],
         *,
+        job_role: str = "java_backend",
         resume_plain_text: Optional[str] = None,
     ) -> str:
         """结束面试：七章《面试总结报告》，与对话人设分离。"""
         try:
-            system_content = get_interview_summary_system_prompt()
+            system_content = get_interview_summary_system_prompt(job_role)
             addon = build_summary_resume_addon(
                 resume_plain_text or "",
                 Config.SUMMARY_RESUME_MAX_CHARS,
@@ -112,7 +116,7 @@ class LLMService:
             messages.append({"role": "user", "content": user_content})
 
             response = self.client.chat.completions.create(
-                model="deepseek-chat",
+                model=Config.LLM_MODEL,
                 messages=messages,
                 temperature=Config.SUMMARY_TEMPERATURE,
                 max_tokens=Config.SUMMARY_MAX_TOKENS,

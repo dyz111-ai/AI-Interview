@@ -14,13 +14,14 @@ def build_summary_resume_addon(resume_text: str, max_chars: int) -> str:
     return "【供评估参考的候选人简历摘录】\n" + t
 
 
-def get_interview_summary_system_prompt() -> str:
+def get_interview_summary_system_prompt(job_role: str = "java_backend") -> str:
     """
     专用总结人设：与面试官对话人设分离，输出七章纯文本报告。
     """
+    role_display = "Java后端开发工程师" if job_role == "java_backend" else "Web前端开发工程师"
     return (
         "你是一名专业的技术面试评估专家，正在根据一场模拟面试的完整对话记录撰写《面试总结报告》。"
-        "目标岗位：Java后端开发工程师；候选人水平预期：本科或硕士，具备基础项目经验。\n\n"
+        f"目标岗位：{role_display}；候选人水平预期：本科或硕士，具备基础项目经验。\n\n"
         "输出要求（必须严格遵守）：\n"
         "1 全文使用纯中文；禁止使用 Markdown 语法（不要用井号、星号、反引号、竖线当作表格线等），不要使用无序列表符号充当排版。\n"
         "2 必须输出七大章节，顺序固定，且章节标题必须以如下格式开头（不可缺少任一章节）："
@@ -89,17 +90,24 @@ def build_question_bank_addon(
     return "\n".join(lines)
 
 
-def get_system_prompt() -> str:
-    """获取系统提示词"""
+def get_system_prompt(job_role: str = "java_backend") -> str:
+    """获取系统提示词，根据岗位动态生成角色名和考察要求。"""
+    if job_role == "web_frontend":
+        role_name = "Web前端开发工程师"
+        requirements = "Web前端开发要求，包含HTML/CSS/JavaScript基础、主流框架（React/Vue）、浏览器原理、前端工程化、性能优化等"
+    else:
+        role_name = "Java后端开发工程师"
+        requirements = "Java后端开发要求，包含Java基础、Spring生态、数据库、并发编程、JVM等"
+
     return (
-        "你是一名资深的后端开发工程师面试官，负责对计算机相关专业的学生进行模拟技术面试。"
+        f"你是一名资深的{role_name}岗位的面试官，负责对计算机相关专业的学生进行模拟技术面试。"
         "你的任务是："
-        "1. 根据岗位Java后端开发工程师的要求，从题库中选择或动态生成面试题；若系统消息中附带知识库检索参考，可优先对齐其中的主题、题型与难度，包含技术知识、项目经历深挖、场景题、行为题。"
+        f"1. 根据岗位{requirements}，从题库中选择或动态生成面试题；若系统消息中附带知识库检索参考，可优先对齐其中的主题、题型与难度，包含技术知识、项目经历深挖、场景题、行为题。"
         "2. 采用多轮对话形式，先提问，等学生回答后，根据回答中的关键词或漏洞进行合理追问。"
         "3. 控制面试节奏，包括若干核心问题及可能的追问；具体时长见本场面试配置。"
         "4. 在每次学生回答后，不直接给出答案，而是简短过渡（如明白了，我们再看下一个问题或你提到了XX，能具体说一下吗？）。"
         "5. 不要在对话过程中输出完整的结构化评估报告或打分表；候选人点击结束面试后，系统会单独生成书面总结报告。"
-        "当前面试岗位：Java后端开发工程师。"
+        f"当前面试岗位：{role_name}。"
         "目标学生水平：本科或硕士，有基础项目经验。"
         "请使用纯文本格式回复，不要使用任何Markdown语法（如*、#、-、`等符号），不要使用代码块、列表标记。"
         "请用自然流畅的语言回答。"

@@ -14,22 +14,31 @@ from ..config import Config
 
 # ── 路径配置（与 backend.config 中项目根 data/ 一致）────────────────
 ROOT = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = ROOT / "data" / "java_backend"
+DATA_DIRS = [
+    (ROOT / "data" / "java_backend", "java_backend"),
+    (ROOT / "data" / "web_frontend", "web_frontend"),
+]
 CHROMA_DIR = ROOT / "data" / "chroma_db"
 
 # ── 向量库配置（集合名默认与 Config.RAG_COLLECTION 一致）──────────
-COLLECTION_NAME = "java_backend"
+COLLECTION_NAME = "knowledge_base"
 
 # ── 切块参数 ──────────────────────────────────────────────
 MIN_CHARS = 80        # 低于此长度合并到下一块
 MAX_CHARS = 900       # 超过此长度按段落再拆
 
 CATEGORY_LABEL = {
-    "interview_questions": "面试题库",
-    "core_knowledge":      "核心知识",
-    "database":            "数据库",
-    "engineering_practice":"工程实践",
-    "best_practices":      "最佳实践",
+    "interview_questions":  "面试题库",
+    "core_knowledge":       "核心知识",
+    "database":             "数据库",
+    "engineering_practice": "工程实践",
+    "best_practices":       "最佳实践",
+    "html_css":             "HTML与CSS",
+    "javascript":           "JavaScript",
+    "framework":            "前端框架",
+    "browser":              "浏览器原理",
+    "engineering":          "前端工程化",
+    "algorithm":            "算法",
 }
 
 
@@ -172,36 +181,38 @@ def build_index():
 
     all_texts, all_ids, all_metas = [], [], []
 
-    md_files = list(DATA_DIR.rglob("*.md")) + list(DATA_DIR.rglob("*.MD"))
-    print(f"共发现 {len(md_files)} 个 Markdown 文件")
+    for data_dir, domain in DATA_DIRS:
+        md_files = list(data_dir.rglob("*.md")) + list(data_dir.rglob("*.MD"))
+        print(f"[{domain}] 共发现 {len(md_files)} 个 Markdown 文件")
 
-    for md_path in md_files:
-        category_dir = md_path.parent.name
-        category_label = CATEGORY_LABEL.get(category_dir, category_dir)
-        filename = md_path.stem
+        for md_path in md_files:
+            category_dir = md_path.parent.name
+            category_label = CATEGORY_LABEL.get(category_dir, category_dir)
+            filename = md_path.stem
 
-        chunks = parse_file(md_path)
+            chunks = parse_file(md_path)
 
-        for idx, (heading, content) in enumerate(chunks):
-            # 拼入标题前缀，给模型更多上下文
-            heading_prefix = f"【{heading}】\n" if heading else ""
-            full_text = f"{heading_prefix}{content}"
+            for idx, (heading, content) in enumerate(chunks):
+                # 拼入标题前缀，给模型更多上下文
+                heading_prefix = f"【{heading}】\n" if heading else ""
+                full_text = f"{heading_prefix}{content}"
 
-            all_texts.append(full_text)
-            all_ids.append(str(uuid.uuid4()))
-            meta = {
-                "source": filename,
-                "category": category_label,
-                "heading": heading,
-                "chunk_idx": idx,
-            }
-            # 仅面试题库块带 job_role，供 question_bank 与旧库两种过滤方式兼容
-            if category_label == "面试题库":
-                meta["job_role"] = COLLECTION_NAME
+                all_texts.append(full_text)
+                all_ids.append(str(uuid.uuid4()))
+                meta = {
+                    "domain": domain,
+                    "source": filename,
+                    "category": category_label,
+                    "heading": heading,
+                    "chunk_idx": idx,
+                }
+                # 仅面试题库块带 job_role，供 question_bank 与旧库两种过滤方式兼容
+                if category_label == "面试题库":
+                    meta["job_role"] = domain
 
-            all_metas.append(meta)
+                all_metas.append(meta)
 
-        print(f"  {category_label}/{filename}  →  {len(chunks)} 块")
+            print(f"  {category_label}/{filename}  →  {len(chunks)} 块")
 
     print(f"\n共 {len(all_texts)} 个 chunk，开始向量化...")
     embeddings = model.encode(all_texts, show_progress_bar=True, batch_size=32)
